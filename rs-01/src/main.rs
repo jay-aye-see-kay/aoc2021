@@ -33,17 +33,17 @@ fn part_2(measurements: &Vec<i32>) -> usize {
 mod tests {
     use super::*;
 
-    const SMALL_INPUT: &str = "199\n200\n208\n210\n200\n207\n240\n269\n260\n263\n";
-    const SMALL_PARSED: [i32; 10] = [199, 200, 208, 210, 200, 207, 240, 269, 260, 263];
+    const SAMPLE_INPUT: &str = "199\n200\n208\n210\n200\n207\n240\n269\n260\n263\n";
+    const SAMPLE_PARSED: [i32; 10] = [199, 200, 208, 210, 200, 207, 240, 269, 260, 263];
 
     #[test]
     fn test_parse_input() {
-        assert_eq!(parse_input(&SMALL_INPUT), SMALL_PARSED);
+        assert_eq!(parse_input(&SAMPLE_INPUT), SAMPLE_PARSED);
     }
 
     #[test]
-    fn test_part_1() {
-        assert_eq!(part_1(&SMALL_PARSED.to_vec()), 7);
+    fn test_part_1_sample() {
+        assert_eq!(part_1(&SAMPLE_PARSED.to_vec()), 7);
     }
 
     #[test]
@@ -54,8 +54,8 @@ mod tests {
     }
 
     #[test]
-    fn test_part_2() {
-        assert_eq!(part_2(&SMALL_PARSED.to_vec()), 5);
+    fn test_part_2_sample() {
+        assert_eq!(part_2(&SAMPLE_PARSED.to_vec()), 5);
     }
 
     #[test]
