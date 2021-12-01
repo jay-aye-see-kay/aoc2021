@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use std::fs;
 
 fn main() {
@@ -15,9 +14,8 @@ fn parse_input(input: &str) -> Vec<i32> {
 /// count the number of measurements that are greater than the previous one
 fn part_1(measurements: &Vec<i32>) -> usize {
     measurements
-        .iter()
-        .tuple_windows()
-        .filter(|(m1, m2)| m1 < m2)
+        .windows(2)
+        .filter(|window| window[0] < window[1])
         .count()
 }
 
