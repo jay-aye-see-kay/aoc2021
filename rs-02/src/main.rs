@@ -24,10 +24,13 @@ impl Position {
 }
 
 fn main() {
-    let input_string = fs::read_to_string("input").unwrap();
-    let parsed_input = parse_input(&input_string);
+    let parsed_input = parse_input(&read_input());
     println!("part 1: {}", part_1(&parsed_input));
     println!("part 2: {}", part_2(&parsed_input));
+}
+
+fn read_input() -> String {
+    fs::read_to_string("input").unwrap()
 }
 
 fn parse_input(input: &str) -> Vec<Motion> {
@@ -83,44 +86,44 @@ mod tests {
         down 8
         forward 2";
 
-    const SAMPLE_PARSED: [Motion; 6] = [
-        Motion::Forward(5),
-        Motion::Down(5),
-        Motion::Forward(8),
-        Motion::Up(3),
-        Motion::Down(8),
-        Motion::Forward(2),
-    ];
+    fn sample_parsed() -> Vec<Motion> {
+        vec![
+            Motion::Forward(5),
+            Motion::Down(5),
+            Motion::Forward(8),
+            Motion::Up(3),
+            Motion::Down(8),
+            Motion::Forward(2),
+        ]
+    }
 
     #[test]
     fn test_parse_input() {
-        let sample_parsed: Vec<Motion> = SAMPLE_PARSED.into();
-        for (actual, expected) in parse_input(&SAMPLE_INPUT).iter().zip(sample_parsed) {
+        let parsed_input = parse_input(&SAMPLE_INPUT);
+        for (actual, expected) in parsed_input.iter().zip(sample_parsed()) {
             assert_eq!(*actual, expected);
         }
     }
 
     #[test]
     fn test_part_1_sample() {
-        assert_eq!(part_1(&SAMPLE_PARSED.into()), 150);
+        assert_eq!(part_1(&sample_parsed()), 150);
     }
 
     #[test]
     fn test_part_1_real() {
-        let input_string = fs::read_to_string("input").unwrap();
-        let parsed_input = parse_input(&input_string);
+        let parsed_input = parse_input(&read_input());
         assert_eq!(part_1(&parsed_input), 2272262);
     }
 
     #[test]
     fn test_part_2_sample() {
-        assert_eq!(part_2(&SAMPLE_PARSED.into()), 900);
+        assert_eq!(part_2(&sample_parsed()), 900);
     }
 
     #[test]
     fn test_part_2_real() {
-        let input_string = fs::read_to_string("input").unwrap();
-        let parsed_input = parse_input(&input_string);
+        let parsed_input = parse_input(&read_input());
         assert_eq!(part_2(&parsed_input), 2134882034);
     }
 }
