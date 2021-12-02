@@ -21,6 +21,31 @@ impl Position {
             depth: 0,
         }
     }
+
+    fn move_forward(mut self: Self, x: &i32) -> Self {
+        self.horizontal += x;
+        self
+    }
+
+    fn move_down(mut self: Self, x: &i32) -> Self {
+        self.depth += x;
+        self
+    }
+
+    fn move_up(mut self: Self, x: &i32) -> Self {
+        self.depth -= x;
+        self
+    }
+
+    fn raise_aim(mut self: Self, x: &i32) -> Self {
+        self.aim -= x;
+        self
+    }
+
+    fn lower_aim(mut self: Self, x: &i32) -> Self {
+        self.aim += x;
+        self
+    }
 }
 
 fn main() {
@@ -39,40 +64,42 @@ fn parse_input(input: &str) -> Vec<Motion> {
         .map(|line| {
             let split_line: Vec<&str> = line.trim().split(' ').collect();
             match split_line[..] {
-                ["up", number] => Motion::Up(number.parse().unwrap()),
-                ["down", number] => Motion::Down(number.parse().unwrap()),
-                ["forward", number] => Motion::Forward(number.parse().unwrap()),
-                _ => panic!("unknown"),
+                ["up", x] => Motion::Up(x.parse().unwrap()),
+                ["down", x] => Motion::Down(x.parse().unwrap()),
+                ["forward", x] => Motion::Forward(x.parse().unwrap()),
+                _ => panic!("Unknown command"),
             }
         })
         .collect()
 }
 
 fn part_1(input: &Vec<Motion>) -> i32 {
-    let mut position = Position::new();
-    for motion in input.iter() {
-        match motion {
-            Motion::Forward(v) => position.horizontal += v,
-            Motion::Up(v) => position.depth -= v,
-            Motion::Down(v) => position.depth += v,
-        }
-    }
-    position.horizontal * position.depth
+    let end_position: Position =
+        input
+            .iter()
+            .fold(Position::new(), |position, motion| match motion {
+                Motion::Forward(x) => position.move_forward(x),
+                Motion::Up(x) => position.move_up(x),
+                Motion::Down(x) => position.move_down(x),
+            });
+
+    end_position.horizontal * end_position.depth
 }
 
 fn part_2(input: &Vec<Motion>) -> i32 {
-    let mut position = Position::new();
-    for motion in input.iter() {
-        match motion {
-            Motion::Forward(x) => {
-                position.horizontal += x;
-                position.depth += position.aim * x;
-            }
-            Motion::Up(x) => position.aim -= x,
-            Motion::Down(x) => position.aim += x,
-        }
-    }
-    position.horizontal * position.depth
+    let end_position: Position =
+        input
+            .iter()
+            .fold(Position::new(), |position, motion| match motion {
+                Motion::Forward(x) => {
+                    let new_depth = position.aim * x;
+                    position.move_forward(x).move_down(&new_depth)
+                }
+                Motion::Up(x) => position.raise_aim(x),
+                Motion::Down(x) => position.lower_aim(x),
+            });
+
+    end_position.horizontal * end_position.depth
 }
 
 #[cfg(test)]
