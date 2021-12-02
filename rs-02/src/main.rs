@@ -1,41 +1,25 @@
-use std::error::Error;
 use std::fs;
-use std::result;
+use std::io;
 use std::str::FromStr;
 
 fn main() {
-    let parsed_input = parse_input(&read_input());
-    println!("part 1: {}", part_1(&parsed_input));
-    println!("part 2: {}", part_2(&parsed_input));
+    println!("part 1: {}", run(&read_input(), Position1::new()));
+    println!("part 2: {}", run(&read_input(), Position2::new()));
 }
 
 fn read_input() -> String {
     fs::read_to_string("input").unwrap()
 }
 
-fn parse_input(input: &str) -> Vec<Motion> {
+fn run(input: &str, initial_position: impl Position) -> i32 {
     input
         .lines()
-        .map(|line| line.trim().parse().unwrap())
-        .collect()
+        .map(|line| line.trim().parse::<Motion>().unwrap())
+        .fold(initial_position, |position, motion| {
+            position.update(&motion)
+        })
+        .calc_multiple()
 }
-
-fn part_1(input: &Vec<Motion>) -> i32 {
-    let end_position = input
-        .iter()
-        .fold(Position1::new(), |position, motion| position.update(motion));
-
-    end_position.horizontal * end_position.depth
-}
-
-fn part_2(input: &Vec<Motion>) -> i32 {
-    let end_position = input
-        .iter()
-        .fold(Position2::new(), |position, motion| position.update(motion));
-    end_position.horizontal * end_position.depth
-}
-
-type Result<T> = result::Result<T, Box<dyn Error>>;
 
 #[derive(Debug, PartialEq)]
 enum Motion {
@@ -44,48 +28,54 @@ enum Motion {
     Forward(i32),
 }
 impl FromStr for Motion {
-    type Err = Box<dyn Error>;
+    type Err = io::Error;
 
-    fn from_str(s: &str) -> Result<Motion> {
+    fn from_str(s: &str) -> Result<Motion, io::Error> {
         let split_line: Vec<&str> = s.trim().split(' ').collect();
-        Ok(match split_line[..] {
-            ["up", x] => Motion::Up(x.parse().unwrap()),
-            ["down", x] => Motion::Down(x.parse().unwrap()),
-            ["forward", x] => Motion::Forward(x.parse().unwrap()),
-            _ => panic!("Unknown command"),
-        })
+        match split_line[..] {
+            ["up", x] => Ok(Motion::Up(x.parse().unwrap())),
+            ["down", x] => Ok(Motion::Down(x.parse().unwrap())),
+            ["forward", x] => Ok(Motion::Forward(x.parse().unwrap())),
+            _ => Err(io::Error::new(io::ErrorKind::InvalidData, "")),
+        }
     }
+}
+
+trait Position {
+    fn new() -> Self;
+    fn update(self: Self, motion: &Motion) -> Self;
+    fn calc_multiple(self: Self) -> i32;
 }
 
 struct Position1 {
     horizontal: i32,
     depth: i32,
 }
-impl Position1 {
+impl Position for Position1 {
     fn new() -> Self {
         Self {
             horizontal: 0,
             depth: 0,
         }
     }
-    fn move_forward(mut self: Self, x: &i32) -> Self {
-        self.horizontal += x;
-        self
-    }
-    fn move_down(mut self: Self, x: &i32) -> Self {
-        self.depth += x;
-        self
-    }
-    fn move_up(mut self: Self, x: &i32) -> Self {
-        self.depth -= x;
-        self
-    }
-    fn update(self: Self, motion: &Motion) -> Self {
+    fn update(mut self: Self, motion: &Motion) -> Self {
         match motion {
-            Motion::Forward(x) => self.move_forward(x),
-            Motion::Up(x) => self.move_up(x),
-            Motion::Down(x) => self.move_down(x),
+            Motion::Forward(x) => {
+                self.horizontal += x;
+                self
+            }
+            Motion::Up(x) => {
+                self.depth -= x;
+                self
+            }
+            Motion::Down(x) => {
+                self.depth += x;
+                self
+            }
         }
+    }
+    fn calc_multiple(self: Self) -> i32 {
+        self.horizontal * self.depth
     }
 }
 
@@ -94,7 +84,7 @@ struct Position2 {
     horizontal: i32,
     depth: i32,
 }
-impl Position2 {
+impl Position for Position2 {
     fn new() -> Self {
         Self {
             aim: 0,
@@ -102,25 +92,25 @@ impl Position2 {
             depth: 0,
         }
     }
-    fn move_forward(mut self: Self, x: &i32) -> Self {
-        self.horizontal += x;
-        self.depth += self.aim * x;
-        self
-    }
-    fn raise_aim(mut self: Self, x: &i32) -> Self {
-        self.aim -= x;
-        self
-    }
-    fn lower_aim(mut self: Self, x: &i32) -> Self {
-        self.aim += x;
-        self
-    }
-    fn update(self: Self, motion: &Motion) -> Self {
+    fn update(mut self: Self, motion: &Motion) -> Self {
         match motion {
-            Motion::Forward(x) => self.move_forward(x),
-            Motion::Up(x) => self.raise_aim(x),
-            Motion::Down(x) => self.lower_aim(x),
+            Motion::Forward(x) => {
+                self.horizontal += x;
+                self.depth += self.aim * x;
+                self
+            }
+            Motion::Up(x) => {
+                self.aim -= x;
+                self
+            }
+            Motion::Down(x) => {
+                self.aim += x;
+                self
+            }
         }
+    }
+    fn calc_multiple(self: Self) -> i32 {
+        self.horizontal * self.depth
     }
 }
 
@@ -135,44 +125,38 @@ mod tests {
         down 8
         forward 2";
 
-    fn sample_parsed() -> Vec<Motion> {
-        vec![
-            Motion::Forward(5),
-            Motion::Down(5),
-            Motion::Forward(8),
-            Motion::Up(3),
-            Motion::Down(8),
-            Motion::Forward(2),
-        ]
-    }
-
     #[test]
     fn test_parse_input() {
-        let parsed_input = parse_input(&SAMPLE_INPUT);
-        for (actual, expected) in parsed_input.iter().zip(sample_parsed()) {
-            assert_eq!(*actual, expected);
-        }
+        vec![
+            ("forward 1", Motion::Forward(1)),
+            ("up 2", Motion::Up(2)),
+            ("down 3", Motion::Down(3)),
+        ]
+        .iter()
+        .for_each(|(input, expected)| {
+            assert_eq!(input.parse::<Motion>().unwrap(), *expected);
+        });
+
+        assert!(matches!("foobar 4".parse::<Motion>(), Err(_)));
     }
 
     #[test]
     fn test_part_1_sample() {
-        assert_eq!(part_1(&sample_parsed()), 150);
+        assert_eq!(run(&SAMPLE_INPUT, Position1::new()), 150);
     }
 
     #[test]
     fn test_part_1_real() {
-        let parsed_input = parse_input(&read_input());
-        assert_eq!(part_1(&parsed_input), 2272262);
+        assert_eq!(run(&read_input(), Position1::new()), 2272262);
     }
 
     #[test]
     fn test_part_2_sample() {
-        assert_eq!(part_2(&sample_parsed()), 900);
+        assert_eq!(run(&SAMPLE_INPUT, Position2::new()), 900);
     }
 
     #[test]
     fn test_part_2_real() {
-        let parsed_input = parse_input(&read_input());
-        assert_eq!(part_2(&parsed_input), 2134882034);
+        assert_eq!(run(&read_input(), Position2::new()), 2134882034);
     }
 }
