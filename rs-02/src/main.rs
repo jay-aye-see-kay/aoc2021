@@ -4,7 +4,45 @@ use std::str::FromStr;
 
 fn main() {
     println!("part 1: {}", run(&read_input(), Position1::new()));
+    println!("part 1 mini: {:?}", part_1_mini());
     println!("part 2: {}", run(&read_input(), Position2::new()));
+    println!("part 2 mini: {:?}", part_2_mini());
+}
+
+/// smaller versions of the solution, based on some ideas from reddit
+fn part_1_mini() -> i32 {
+    include_str!("../input")
+        .lines()
+        .map(|line| line.split_once(" ").unwrap())
+        .fold([0, 0], |[distance, depth], (direction, x)| {
+            let x: i32 = x.parse().unwrap();
+            match direction {
+                "forward" => [distance + x, depth],
+                "up" => [distance, depth - x],
+                "down" => [distance, depth + x],
+                _ => panic!("Unexpected input"),
+            }
+        })
+        .iter()
+        .product()
+}
+
+fn part_2_mini() -> i32 {
+    include_str!("../input")
+        .lines()
+        .map(|line| line.split_once(" ").unwrap())
+        .fold([0, 0, 0], |[distance, depth, aim], (direction, x)| {
+            let x: i32 = x.parse().unwrap();
+            match direction {
+                "forward" => [distance + x, depth + aim * x, aim],
+                "up" => [distance, depth, aim - x],
+                "down" => [distance, depth, aim + x],
+                _ => panic!("Unexpected input"),
+            }
+        })
+        .iter()
+        .take(2)
+        .product()
 }
 
 fn read_input() -> String {
@@ -31,11 +69,10 @@ impl FromStr for Motion {
     type Err = io::Error;
 
     fn from_str(s: &str) -> Result<Motion, io::Error> {
-        let split_line: Vec<&str> = s.trim().split(' ').collect();
-        match split_line[..] {
-            ["up", x] => Ok(Motion::Up(x.parse().unwrap())),
-            ["down", x] => Ok(Motion::Down(x.parse().unwrap())),
-            ["forward", x] => Ok(Motion::Forward(x.parse().unwrap())),
+        match s.split_once(" ").unwrap() {
+            ("up", x) => Ok(Motion::Up(x.parse().unwrap())),
+            ("down", x) => Ok(Motion::Down(x.parse().unwrap())),
+            ("forward", x) => Ok(Motion::Forward(x.parse().unwrap())),
             _ => Err(io::Error::new(io::ErrorKind::InvalidData, "")),
         }
     }
@@ -151,6 +188,11 @@ mod tests {
     }
 
     #[test]
+    fn test_part_1_mini() {
+        assert_eq!(part_1_mini(), 2272262);
+    }
+
+    #[test]
     fn test_part_2_sample() {
         assert_eq!(run(&SAMPLE_INPUT, Position2::new()), 900);
     }
@@ -158,5 +200,10 @@ mod tests {
     #[test]
     fn test_part_2_real() {
         assert_eq!(run(&read_input(), Position2::new()), 2134882034);
+    }
+
+    #[test]
+    fn test_part_2_mini() {
+        assert_eq!(part_2_mini(), 2134882034);
     }
 }
