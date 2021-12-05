@@ -1,42 +1,24 @@
 use std::collections::HashMap;
-use std::fs;
+use std::{cmp, fs};
 
 fn main() {
-    println!("part 1: {}", part_1("input"));
-    println!("part 2: {}", part_2("input"));
+    println!("part 1: {}", count_overlapping_lines("input", false));
+    println!("part 2: {}", count_overlapping_lines("input", true));
 }
 
 /// lay out the lines in a sparse matrix and then count the number of coordinates where two or more
 /// lines overlap
-fn part_1(filename: &str) -> i32 {
-    let mut sparse_matrix: HashMap<Position, i32> = HashMap::new();
+fn count_overlapping_lines(filename: &str, consider_diagonals: bool) -> i32 {
+    let mut points_sparse_matrix: HashMap<Position, i32> = HashMap::new();
     for line in get_input(filename) {
-        for point in line.get_points() {
-            let prev_count = sparse_matrix.get(&point).unwrap_or(&0);
+        for point in line.get_points(consider_diagonals) {
+            let prev_count = points_sparse_matrix.get(&point).unwrap_or(&0);
             let new_count = prev_count + 1;
-            sparse_matrix.insert(point, new_count);
+            points_sparse_matrix.insert(point, new_count);
         }
     }
     let mut two_plus_count = 0;
-    for (_k, v) in sparse_matrix.iter() {
-        if v >= &2 {
-            two_plus_count += 1;
-        }
-    }
-    two_plus_count
-}
-
-fn part_2(filename: &str) -> i32 {
-    let mut sparse_matrix: HashMap<Position, i32> = HashMap::new();
-    for line in get_input(filename) {
-        for point in line.get_points2() {
-            let prev_count = sparse_matrix.get(&point).unwrap_or(&0);
-            let new_count = prev_count + 1;
-            sparse_matrix.insert(point, new_count);
-        }
-    }
-    let mut two_plus_count = 0;
-    for (_k, v) in sparse_matrix.iter() {
+    for (_k, v) in points_sparse_matrix.iter() {
         if v >= &2 {
             two_plus_count += 1;
         }
@@ -57,93 +39,53 @@ impl Line {
         Self { start, end }
     }
 
-    fn get_points(&self) -> Vec<Position> {
-        let mut positions: Vec<Position> = vec![];
-
-        // filter out diagonals
+    fn get_points(&self, consider_diagonals: bool) -> Vec<Position> {
         let has_x_change = self.start.0 != self.end.0;
         let has_y_change = self.start.1 != self.end.1;
-        if has_x_change && has_y_change {
-            return vec![];
-        }
 
-        // {{{ FIXME this mess
-        for x in self.start.0..=self.end.0 {
-            let y = self.start.1;
-            positions.push((x, y));
+        match (has_x_change, has_y_change) {
+            (true, false) => {
+                // line is horizonal
+                let start_x = cmp::min(self.start.0, self.end.0);
+                let end_x = cmp::max(self.start.0, self.end.0);
+                let y = self.start.1;
+                (start_x..=end_x).map(|x| (x, y)).collect()
+            }
+            (false, true) => {
+                // line is vertical
+                let start_y = cmp::min(self.start.1, self.end.1);
+                let end_y = cmp::max(self.start.1, self.end.1);
+                let x = self.start.0;
+                (start_y..=end_y).map(|y| (x, y)).collect()
+            }
+            (true, true) => {
+                // line is diagonal
+                if consider_diagonals {
+                    self.get_diagonal_points()
+                } else {
+                    vec![]
+                }
+            }
+            _ => panic!("unexpected line with no direction"),
         }
-        for x in self.end.0..=self.start.0 {
-            let y = self.start.1;
-            positions.push((x, y));
-        }
-        for y in self.start.1..=self.end.1 {
-            let x = self.start.0;
-            positions.push((x, y));
-        }
-        for y in self.end.1..=self.start.1 {
-            let x = self.start.0;
-            positions.push((x, y));
-        }
-        positions.sort();
-        positions.dedup();
-        // }}}
-
-        positions
     }
 
-    fn get_points2(&self) -> Vec<Position> {
-        let mut positions: Vec<Position> = vec![];
+    fn get_diagonal_points(&self) -> Vec<Position> {
+        let mut as_array = [self.start, self.end];
+        as_array.sort();
+        let [start_pos, end_pos] = as_array;
 
-        // filter out diagonals
-        let has_x_change = self.start.0 != self.end.0;
-        let has_y_change = self.start.1 != self.end.1;
-        if has_x_change && has_y_change {
-            for (i, x) in (self.start.0..=self.end.0).enumerate() {
-                let y = if self.start.1 < self.end.1 {
-                    self.start.1 + i as i32
+        (start_pos.0..=end_pos.0)
+            .enumerate()
+            .map(|(i, x)| {
+                let y = if start_pos.1 < end_pos.1 {
+                    start_pos.1 + i as i32
                 } else {
-                    self.start.1 - i as i32
+                    start_pos.1 - i as i32
                 };
-                positions.push((x, y));
-            }
-            for (i, x) in (self.end.0..=self.start.0).enumerate() {
-                let y = if self.start.1 > self.end.1 {
-                    self.end.1 + i as i32
-                } else {
-                    self.end.1 - i as i32
-                };
-                positions.push((x, y));
-            }
-
-            println!("positions: {:?}", positions);
-            // FIXME !!
-            positions.sort();
-            positions.dedup();
-            return positions;
-        }
-
-        // {{{ FIXME this mess
-        for x in self.start.0..=self.end.0 {
-            let y = self.start.1;
-            positions.push((x, y));
-        }
-        for x in self.end.0..=self.start.0 {
-            let y = self.start.1;
-            positions.push((x, y));
-        }
-        for y in self.start.1..=self.end.1 {
-            let x = self.start.0;
-            positions.push((x, y));
-        }
-        for y in self.end.1..=self.start.1 {
-            let x = self.start.0;
-            positions.push((x, y));
-        }
-        positions.sort();
-        positions.dedup();
-        // }}}
-
-        positions
+                (x, y)
+            })
+            .collect()
     }
 }
 
@@ -188,21 +130,21 @@ mod tests {
 
     #[test]
     fn test_part_1_sample() {
-        assert_eq!(part_1("input.test"), 5);
+        assert_eq!(count_overlapping_lines("input.test", false), 5);
     }
 
     #[test]
     fn test_part_1_real() {
-        assert_eq!(part_1("input"), 7468);
+        assert_eq!(count_overlapping_lines("input", false), 7468);
     }
 
     #[test]
     fn test_part_2_sample() {
-        assert_eq!(part_2("input.test"), 12);
+        assert_eq!(count_overlapping_lines("input.test", true), 12);
     }
 
     #[test]
     fn test_part_2_real() {
-        assert_eq!(part_2("input"), 22364);
+        assert_eq!(count_overlapping_lines("input", true), 22364);
     }
 }
