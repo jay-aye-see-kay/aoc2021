@@ -1,8 +1,9 @@
-use std::fs;
 use std::collections::HashMap;
+use std::fs;
 
 fn main() {
     println!("part 1: {}", part_1("input"));
+    println!("part 2: {}", part_2("input"));
 }
 
 /// lay out the lines in a sparse matrix and then count the number of coordinates where two or more
@@ -11,6 +12,24 @@ fn part_1(filename: &str) -> i32 {
     let mut sparse_matrix: HashMap<Position, i32> = HashMap::new();
     for line in get_input(filename) {
         for point in line.get_points() {
+            let prev_count = sparse_matrix.get(&point).unwrap_or(&0);
+            let new_count = prev_count + 1;
+            sparse_matrix.insert(point, new_count);
+        }
+    }
+    let mut two_plus_count = 0;
+    for (_k, v) in sparse_matrix.iter() {
+        if v >= &2 {
+            two_plus_count += 1;
+        }
+    }
+    two_plus_count
+}
+
+fn part_2(filename: &str) -> i32 {
+    let mut sparse_matrix: HashMap<Position, i32> = HashMap::new();
+    for line in get_input(filename) {
+        for point in line.get_points2() {
             let prev_count = sparse_matrix.get(&point).unwrap_or(&0);
             let new_count = prev_count + 1;
             sparse_matrix.insert(point, new_count);
@@ -46,6 +65,61 @@ impl Line {
         let has_y_change = self.start.1 != self.end.1;
         if has_x_change && has_y_change {
             return vec![];
+        }
+
+        // {{{ FIXME this mess
+        for x in self.start.0..=self.end.0 {
+            let y = self.start.1;
+            positions.push((x, y));
+        }
+        for x in self.end.0..=self.start.0 {
+            let y = self.start.1;
+            positions.push((x, y));
+        }
+        for y in self.start.1..=self.end.1 {
+            let x = self.start.0;
+            positions.push((x, y));
+        }
+        for y in self.end.1..=self.start.1 {
+            let x = self.start.0;
+            positions.push((x, y));
+        }
+        positions.sort();
+        positions.dedup();
+        // }}}
+
+        positions
+    }
+
+    fn get_points2(&self) -> Vec<Position> {
+        let mut positions: Vec<Position> = vec![];
+
+        // filter out diagonals
+        let has_x_change = self.start.0 != self.end.0;
+        let has_y_change = self.start.1 != self.end.1;
+        if has_x_change && has_y_change {
+            for (i, x) in (self.start.0..=self.end.0).enumerate() {
+                let y = if self.start.1 < self.end.1 {
+                    self.start.1 + i as i32
+                } else {
+                    self.start.1 - i as i32
+                };
+                positions.push((x, y));
+            }
+            for (i, x) in (self.end.0..=self.start.0).enumerate() {
+                let y = if self.start.1 > self.end.1 {
+                    self.end.1 + i as i32
+                } else {
+                    self.end.1 - i as i32
+                };
+                positions.push((x, y));
+            }
+
+            println!("positions: {:?}", positions);
+            // FIXME !!
+            positions.sort();
+            positions.dedup();
+            return positions;
         }
 
         // {{{ FIXME this mess
@@ -120,5 +194,15 @@ mod tests {
     #[test]
     fn test_part_1_real() {
         assert_eq!(part_1("input"), 7468);
+    }
+
+    #[test]
+    fn test_part_2_sample() {
+        assert_eq!(part_2("input.test"), 12);
+    }
+
+    #[test]
+    fn test_part_2_real() {
+        assert_eq!(part_2("input"), 22364);
     }
 }
