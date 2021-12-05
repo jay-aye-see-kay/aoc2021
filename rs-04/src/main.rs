@@ -1,6 +1,6 @@
 #![allow(dead_code, unused_imports)]
 
-use std::fs;
+use std::{fs, str::FromStr};
 
 fn main() {
     println!("part 1: {}", part_1());
@@ -75,6 +75,15 @@ impl Board {
         }
         false
     }
+
+    fn sum_of_unmarked(&self) -> i32 {
+        self.values
+            .iter()
+            .zip(self.marks.iter())
+            .filter(|&(_, m)| !m)
+            .map(|(v, _)| v)
+            .sum::<i32>()
+    }
 }
 
 #[derive(Debug)]
@@ -100,31 +109,55 @@ impl Game {
             board.mark(draw);
         }
     }
+
+    fn winning_score(&self) -> Option<i32> {
+        for board in &self.boards {
+            if board.has_won() {
+                let last_draw = self.draws[self.counter - 1];
+                return Some(board.sum_of_unmarked() * last_draw);
+            }
+        }
+        None
+    }
+
+    fn play_until_winner(&mut self) -> Option<i32> {
+        while self.counter < self.draws.len() {
+            self.tick();
+            if let Some(score) = self.winning_score() {
+                return Some(score);
+            }
+        }
+        None
+    }
 }
 
-fn parse_input(input: &str) -> Game {
-    let mut draws = vec![];
-    let mut boards = vec![];
-    for (i, input) in input.split("\n\n").enumerate() {
-        if i == 0 {
-            draws = input.split(",").map(|draw| draw.parse().unwrap()).collect();
-        } else {
-            let grid: Vec<Vec<i32>> = input
-                .trim()
-                .split("\n")
-                .map(|line| {
-                    line.trim()
-                        .split_whitespace()
-                        .map(|cell| cell.parse::<i32>().unwrap())
-                        .collect()
-                })
-                .collect();
-            let values = grid.iter().flatten().map(|c| *c).collect();
-            let width = grid[0].len();
-            boards.push(Board::new(values, width));
+impl FromStr for Game {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        let mut draws = vec![];
+        let mut boards = vec![];
+        for (i, input) in input.split("\n\n").enumerate() {
+            if i == 0 {
+                draws = input.split(",").map(|draw| draw.parse().unwrap()).collect();
+            } else {
+                let grid: Vec<Vec<i32>> = input
+                    .trim()
+                    .split("\n")
+                    .map(|line| {
+                        line.trim()
+                            .split_whitespace()
+                            .map(|cell| cell.parse::<i32>().unwrap())
+                            .collect()
+                    })
+                    .collect();
+                let values = grid.iter().flatten().map(|c| *c).collect();
+                let width = grid[0].len();
+                boards.push(Board::new(values, width));
+            }
         }
+        Ok(Self::new(boards, draws))
     }
-    Game::new(boards, draws)
 }
 
 #[cfg(test)]
@@ -132,9 +165,25 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_part_1_sample() {
+        let input = fs::read_to_string("input.test").unwrap();
+        let mut game = input.parse::<Game>().unwrap();
+        let winning_score = game.play_until_winner().unwrap();
+        assert_eq!(winning_score, 4512);
+    }
+
+    #[test]
+    fn test_part_1_real() {
+        let input = fs::read_to_string("input").unwrap();
+        let mut game = input.parse::<Game>().unwrap();
+        let winning_score = game.play_until_winner().unwrap();
+        assert_eq!(winning_score, 54275);
+    }
+
+    #[test]
     fn test_parse_input() {
         let input = fs::read_to_string("input.test").unwrap();
-        let game = parse_input(&input);
+        let game = input.parse::<Game>().unwrap();
         assert_eq!(game.boards.len(), 3);
         assert_eq!(game.boards[0].width, 5);
         assert_eq!(game.boards[0].values.len(), 25);
