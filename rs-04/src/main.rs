@@ -1,16 +1,15 @@
-#![allow(dead_code, unused_imports)]
-
 use std::{fs, str::FromStr};
 
 fn main() {
-    println!("part 1: {}", part_1());
-}
+    let input = fs::read_to_string("input").unwrap();
+    let mut game = input.parse::<Game>().unwrap();
+    let winning_score = game.play_until_winner().unwrap();
+    println!("part 1: {}", winning_score);
 
-fn part_1() -> i32 {
-    // parse into bingo "boards"
-    // implement a has_won method
-    // implement a mark board method
-    0
+    let input = fs::read_to_string("input").unwrap();
+    let mut game = input.parse::<Game>().unwrap();
+    let last_winning_score = game.play_until_last_winner().unwrap();
+    println!("part 2: {}", last_winning_score);
 }
 
 #[derive(Debug)]
@@ -84,6 +83,10 @@ impl Board {
             .map(|(v, _)| v)
             .sum::<i32>()
     }
+
+    fn score(&self, last_draw: i32) -> i32 {
+        self.sum_of_unmarked() * last_draw
+    }
 }
 
 #[derive(Debug)]
@@ -103,18 +106,25 @@ impl Game {
     }
 
     fn tick(&mut self) {
-        let draw = self.draws[self.counter];
+        let draw = self.current_draw();
         self.counter += 1;
         for board in &mut self.boards {
             board.mark(draw);
         }
     }
 
+    fn current_draw(&self) -> i32 {
+        self.draws[self.counter]
+    }
+
+    fn last_draw(&self) -> i32 {
+        self.draws[self.counter - 1]
+    }
+
     fn winning_score(&self) -> Option<i32> {
         for board in &self.boards {
             if board.has_won() {
-                let last_draw = self.draws[self.counter - 1];
-                return Some(board.sum_of_unmarked() * last_draw);
+                return Some(board.score(self.last_draw()));
             }
         }
         None
@@ -125,6 +135,24 @@ impl Game {
             self.tick();
             if let Some(score) = self.winning_score() {
                 return Some(score);
+            }
+        }
+        None
+    }
+
+    fn play_until_last_winner(&mut self) -> Option<i32> {
+        let num_boards = self.boards.len();
+        let mut winning_boards: Vec<Option<i32>> = vec![None; num_boards];
+        while self.counter < self.draws.len() {
+            self.tick();
+            for (board_idx, board) in self.boards.iter().enumerate() {
+                if board.has_won() {
+                    let score = board.score(self.last_draw());
+                    winning_boards[board_idx] = Some(score);
+                    if winning_boards.iter().all(|b| b.is_some()) {
+                        return Some(score);
+                    }
+                }
             }
         }
         None
@@ -178,6 +206,22 @@ mod tests {
         let mut game = input.parse::<Game>().unwrap();
         let winning_score = game.play_until_winner().unwrap();
         assert_eq!(winning_score, 54275);
+    }
+
+    #[test]
+    fn test_part_2_sample() {
+        let input = fs::read_to_string("input.test").unwrap();
+        let mut game = input.parse::<Game>().unwrap();
+        let last_winning_score = game.play_until_last_winner().unwrap();
+        assert_eq!(last_winning_score, 1924);
+    }
+
+    #[test]
+    fn test_part_2_real() {
+        let input = fs::read_to_string("input").unwrap();
+        let mut game = input.parse::<Game>().unwrap();
+        let last_winning_score = game.play_until_last_winner().unwrap();
+        assert_eq!(last_winning_score, 13158);
     }
 
     #[test]
