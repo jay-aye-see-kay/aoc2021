@@ -49,50 +49,38 @@ fn part_1(filename: &str) -> i32 {
     gamma.to_decimal() * epsilon.to_decimal()
 }
 
-fn filter_by_position(to_keep: &bool, at_position: &usize, codes: &Vec<Binary>) -> Vec<Binary> {
-    codes
-        .iter()
-        .filter(|code| code.bits[*at_position] == *to_keep)
-        .map(|code| code.clone())
-        .collect()
+enum Common {
+    Most,
+    Least,
 }
 
-fn most_common_at(codes_count: usize, counts: &Vec<i32>, at_position: usize) -> bool {
-    counts[at_position] as f64 >= codes_count as f64 / 2.0
+fn filter_most_common_recursive(common: Common, codes: Vec<Binary>, at_position: usize) -> Binary {
+    if codes.len() == 1 {
+        return codes[0].clone();
+    }
+    let counts = count_ones(&codes);
+    let most_common = (counts[at_position] as f64) >= (codes.len() as f64 / 2.0);
+    let to_keep = match common {
+        Common::Most => most_common,
+        Common::Least => !most_common,
+    };
+    let filtered_codes = codes
+        .iter()
+        .filter(|code| code.bits[at_position] == to_keep)
+        .map(|code| code.clone())
+        .collect();
+    return filter_most_common_recursive(common, filtered_codes, at_position + 1);
 }
 
 fn part_2(filename: &str) -> i32 {
-    let orginal_codes: Vec<Binary> = fs::read_to_string(filename)
+    let codes: Vec<Binary> = fs::read_to_string(filename)
         .unwrap()
         .lines()
         .map(|line| line.parse().unwrap())
         .collect();
 
-    let mut considered_idx = 0;
-    let mut codes = orginal_codes.clone();
-
-    let oxygen_generator_rating = loop {
-        let counts = count_ones(&codes);
-        if codes.len() == 1 {
-            break codes[0].clone();
-        }
-        let most_common = most_common_at(codes.len(), &counts, considered_idx);
-        codes = filter_by_position(&most_common, &considered_idx, &codes);
-        considered_idx += 1;
-    };
-
-    considered_idx = 0;
-    codes = orginal_codes.clone();
-
-    let co2_scrubber_rating = loop {
-        let counts = count_ones(&codes);
-        if codes.len() == 1 {
-            break codes[0].clone();
-        }
-        let least_common = !most_common_at(codes.len(), &counts, considered_idx);
-        codes = filter_by_position(&least_common, &considered_idx, &codes);
-        considered_idx += 1;
-    };
+    let oxygen_generator_rating = filter_most_common_recursive(Common::Most, codes.clone(), 0);
+    let co2_scrubber_rating = filter_most_common_recursive(Common::Least, codes.clone(), 0);
 
     oxygen_generator_rating.to_decimal() * co2_scrubber_rating.to_decimal()
 }
