@@ -2,6 +2,7 @@ use std::fs;
 
 fn main() {
     println!("part 1: {}", part_1("input"));
+    println!("part 2: {}", part_2("input"));
 }
 
 fn part_1(filename: &str) -> i32 {
@@ -27,6 +28,23 @@ fn get_input(filename: &str) -> Vec<i32> {
         .collect()
 }
 
+fn part_2(filename: &str) -> i32 {
+    let input = get_input(filename);
+    let max_position = input.iter().max().unwrap();
+    let mut fuel_costs = vec![];
+    for current_position in 0..*max_position {
+        let sum: i32 = input
+            .iter()
+            .map(|x| {
+                let distance = (x - current_position).abs();
+                (distance * (distance + 1)) / 2
+            })
+            .sum();
+        fuel_costs.push(sum);
+    }
+    *fuel_costs.iter().min().unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -46,5 +64,15 @@ mod tests {
     #[test]
     fn test_part_1_real() {
         assert_eq!(part_1("input"), 347011);
+    }
+
+    #[test]
+    fn test_part_2_sample() {
+        assert_eq!(part_2("input.test"), 168);
+    }
+
+    #[test]
+    fn test_part_2_real() {
+        assert_eq!(part_2("input"), 98363777);
     }
 }
