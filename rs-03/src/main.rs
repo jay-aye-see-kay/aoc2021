@@ -9,7 +9,7 @@ fn main() {
     println!("part 2: {}", part_2("input"));
 }
 
-fn count_ones(codes: &Vec<Binary>) -> Vec<i32> {
+fn count_ones(codes: &[Binary]) -> Vec<i32> {
     let binary_width = codes[0].bits.len();
     codes
         .iter()
@@ -67,9 +67,9 @@ fn filter_most_common_recursive(common: Common, codes: Vec<Binary>, at_position:
     let filtered_codes = codes
         .iter()
         .filter(|code| code.bits[at_position] == to_keep)
-        .map(|code| code.clone())
+        .cloned()
         .collect();
-    return filter_most_common_recursive(common, filtered_codes, at_position + 1);
+    filter_most_common_recursive(common, filtered_codes, at_position + 1)
 }
 
 fn part_2(filename: &str) -> i32 {
@@ -80,7 +80,7 @@ fn part_2(filename: &str) -> i32 {
         .collect();
 
     let oxygen_generator_rating = filter_most_common_recursive(Common::Most, codes.clone(), 0);
-    let co2_scrubber_rating = filter_most_common_recursive(Common::Least, codes.clone(), 0);
+    let co2_scrubber_rating = filter_most_common_recursive(Common::Least, codes, 0);
 
     oxygen_generator_rating.to_decimal() * co2_scrubber_rating.to_decimal()
 }

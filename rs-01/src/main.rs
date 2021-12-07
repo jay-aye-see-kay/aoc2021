@@ -12,7 +12,7 @@ fn parse_input(input: &str) -> Vec<i32> {
 }
 
 /// count the number of measurements that are greater than the previous one
-fn part_1(measurements: &Vec<i32>) -> usize {
+fn part_1(measurements: &[i32]) -> usize {
     measurements
         .windows(2)
         .filter(|window| window[0] < window[1])
@@ -20,7 +20,7 @@ fn part_1(measurements: &Vec<i32>) -> usize {
 }
 
 /// count the number of measurements [summed in 3 wide windows] that are greater than the previous one
-fn part_2(measurements: &Vec<i32>) -> usize {
+fn part_2(measurements: &[i32]) -> usize {
     let summed_measurements: Vec<i32> = measurements
         .windows(3)
         .map(|window| window.iter().sum())

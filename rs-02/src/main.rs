@@ -80,8 +80,8 @@ impl FromStr for Motion {
 
 trait Position {
     fn new() -> Self;
-    fn update(self: Self, motion: &Motion) -> Self;
-    fn calc_multiple(self: Self) -> i32;
+    fn update(self, motion: &Motion) -> Self;
+    fn calc_multiple(self) -> i32;
 }
 
 struct Position1 {
@@ -95,7 +95,7 @@ impl Position for Position1 {
             depth: 0,
         }
     }
-    fn update(mut self: Self, motion: &Motion) -> Self {
+    fn update(mut self, motion: &Motion) -> Self {
         match motion {
             Motion::Forward(x) => {
                 self.horizontal += x;
@@ -111,7 +111,7 @@ impl Position for Position1 {
             }
         }
     }
-    fn calc_multiple(self: Self) -> i32 {
+    fn calc_multiple(self) -> i32 {
         self.horizontal * self.depth
     }
 }
@@ -129,7 +129,7 @@ impl Position for Position2 {
             depth: 0,
         }
     }
-    fn update(mut self: Self, motion: &Motion) -> Self {
+    fn update(mut self, motion: &Motion) -> Self {
         match motion {
             Motion::Forward(x) => {
                 self.horizontal += x;
@@ -146,7 +146,7 @@ impl Position for Position2 {
             }
         }
     }
-    fn calc_multiple(self: Self) -> i32 {
+    fn calc_multiple(self) -> i32 {
         self.horizontal * self.depth
     }
 }

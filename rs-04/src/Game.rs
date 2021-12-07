@@ -80,11 +80,11 @@ impl FromStr for Game {
         let mut boards = vec![];
         for (i, input) in input.split("\n\n").enumerate() {
             if i == 0 {
-                draws = input.split(",").map(|draw| draw.parse().unwrap()).collect();
+                draws = input.split(',').map(|draw| draw.parse().unwrap()).collect();
             } else {
                 let grid: Vec<Vec<i32>> = input
                     .trim()
-                    .split("\n")
+                    .split('\n')
                     .map(|line| {
                         line.trim()
                             .split_whitespace()
@@ -92,7 +92,7 @@ impl FromStr for Game {
                             .collect()
                     })
                     .collect();
-                let values = grid.iter().flatten().map(|c| *c).collect();
+                let values = grid.iter().flatten().copied().collect();
                 let width = grid[0].len();
                 boards.push(Board::new(values, width));
             }
