@@ -18,7 +18,7 @@ impl FromStr for School {
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         let ages: Vec<i64> = input
             .trim()
-            .split(",")
+            .split(',')
             .map(|l| l.parse().unwrap())
             .collect();
         Ok(School {

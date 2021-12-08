@@ -12,9 +12,9 @@ fn part_1(filename: &str) -> i32 {
     sum
 }
 
-fn median(numbers: &Vec<i32>) -> i32 {
-    let mut numbers = numbers.clone();
-    numbers.sort();
+fn median(numbers: &[i32]) -> i32 {
+    let mut numbers = numbers.to_owned();
+    numbers.sort_unstable();
     let mid = numbers.len() / 2;
     numbers[mid]
 }
@@ -23,7 +23,7 @@ fn get_input(filename: &str) -> Vec<i32> {
     fs::read_to_string(filename)
         .unwrap()
         .trim()
-        .split(",")
+        .split(',')
         .map(|line| line.parse().unwrap())
         .collect()
 }

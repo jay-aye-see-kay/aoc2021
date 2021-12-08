@@ -72,7 +72,7 @@ impl Line {
 
     fn get_diagonal_points(&self) -> Vec<Position> {
         let mut as_array = [self.start, self.end];
-        as_array.sort();
+        as_array.sort_unstable();
         let [start_pos, end_pos] = as_array;
 
         (start_pos.0..=end_pos.0)
