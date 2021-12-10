@@ -1,129 +1,99 @@
+use std::collections::HashMap;
 use std::fs;
+
+// shorthand for creating a hashmap like vec![]
+macro_rules! map {
+    ($( $t: expr),*) => {{
+         let mut map = HashMap::new();
+         $( map.insert($t.0, $t.1); )*
+         map
+    }}
+}
+
+#[derive(Debug, PartialEq)]
+enum Chunk {
+    /// chunk is valid but Incomplete, stores the brackets required to complete the chunk
+    Incomplete(Vec<char>),
+    /// chuck cannot be completed, stores the (expected, found) brackets
+    Invalid((char, char)),
+}
+impl Chunk {
+    fn get_invalid_points(&self) -> i64 {
+        let points_table = map!((')', 3), (']', 57), ('}', 1197), ('>', 25137));
+        match self {
+            Chunk::Invalid((_, found)) => points_table[found],
+            Chunk::Incomplete(_) => 0,
+        }
+    }
+
+    fn get_completion_points(&self) -> i64 {
+        let points_table = map!((')', 1), (']', 2), ('}', 3), ('>', 4));
+        match self {
+            Chunk::Invalid(_) => 0,
+            Chunk::Incomplete(completions) => completions
+                .iter()
+                .fold(0, |sum, completion| sum * 5 + points_table[completion]),
+        }
+    }
+}
 
 fn main() {
     println!("part 1: {}", part_1("input"));
     println!("part 2: {}", part_2("input"));
 }
 
+/// Considering on the invalid chunks calculate the invalid score for each chuck and return the sum
 fn part_1(filename: &str) -> i64 {
     fs::read_to_string(filename)
         .unwrap()
         .lines()
-        .map(|line| get_points_of_first_invalid_char(line))
+        .map(|line| parse_to_chunk(line).get_invalid_points())
         .sum()
 }
 
+/// Ignoring the invalid chunks, calculate the completion points for each chuck, the return the
+/// median score
 fn part_2(filename: &str) -> i64 {
-    let input = fs::read_to_string(filename).unwrap();
-    let mut scores: Vec<_> = input
+    let mut scores: Vec<_> = fs::read_to_string(filename)
+        .unwrap()
         .lines()
-        .map(|line| validate_brackets(line))
-        .map(|res| match res {
-            BracketResult::Valid(completion) => completion_score(&completion),
-            BracketResult::Invalid(_) => 0,
-        })
+        .map(|line| parse_to_chunk(line).get_completion_points())
         .filter(|score| score > &0)
         .collect();
-
     scores.sort_unstable();
-    println!("scores: {:?}", scores);
-    let res = scores[scores.len() / 2];
-    res
+    scores[scores.len() / 2]
 }
 
-fn completion_score(completions: &Vec<char>) -> i64 {
-    completions.iter().fold(0, |sum, completion| {
-        let score = match completion {
-            ')' => 1,
-            ']' => 2,
-            '}' => 3,
-            '>' => 4,
-            _ => panic!(),
-        };
-        sum * 5 + score
-    })
-}
-
-fn get_points_of_first_invalid_char(line: &str) -> i64 {
-    let res = validate_brackets(line);
-    match res {
-        BracketResult::Invalid((_, ')')) => 3,
-        BracketResult::Invalid((_, ']')) => 57,
-        BracketResult::Invalid((_, '}')) => 1197,
-        BracketResult::Invalid((_, '>')) => 25137,
-        BracketResult::Invalid((_, _)) => 0,
-        BracketResult::Valid(_) => 0,
+/// flip an open bracket to return its closing pair
+fn flip_bracket(char: &char) -> char {
+    if ['[', '{', '<'].contains(char) {
+        (*char as u8 + 2) as char // these bracket pairs are 2 apart in the ascii table
+    } else if *char == '(' {
+        (*char as u8 + 1) as char // round bracket pair are next to each other
+    } else {
+        panic!("invalid bracket")
     }
 }
 
-fn flip(char: &char) -> char {
-    match char {
-        '(' => ')',
-        ')' => '(',
-        '[' => ']',
-        ']' => '[',
-        '{' => '}',
-        '}' => '{',
-        '<' => '>',
-        '>' => '<',
-        _ => panic!("invalid bracket"),
+fn validate_char(found: char, stack: &mut Vec<char>) -> Option<(char, char)> {
+    let expected = flip_bracket(&stack.pop().unwrap());
+    if found != expected {
+        Some((expected, found))
+    } else {
+        None
     }
 }
 
-#[derive(Debug, PartialEq)]
-enum BracketResult {
-    Valid(Vec<char>),
-    Invalid((char, char)),
-}
-
-fn validate_brackets(line: &str) -> BracketResult {
+fn parse_to_chunk(line: &str) -> Chunk {
     let mut stack: Vec<char> = Vec::new();
-
     for char in line.chars() {
-        // TODO handle the case where the stack is empty?
-        match char {
-            '(' => stack.push('('),
-            ')' => {
-                let found = ')';
-                let from_stack = stack.pop().or(Some('x')).unwrap();
-                let expected = flip(&from_stack);
-                if found != expected {
-                    return BracketResult::Invalid((expected, found));
-                }
-            }
-            '[' => stack.push('['),
-            ']' => {
-                let found = ']';
-                let from_stack = stack.pop().or(Some('x')).unwrap();
-                let expected = flip(&from_stack);
-                if found != expected {
-                    return BracketResult::Invalid((expected, found));
-                }
-            }
-            '{' => stack.push('{'),
-            '}' => {
-                let found = '}';
-                let from_stack = stack.pop().or(Some('x')).unwrap();
-                let expected = flip(&from_stack);
-                if found != expected {
-                    return BracketResult::Invalid((expected, found));
-                }
-            }
-            '<' => stack.push('<'),
-            '>' => {
-                let found = '>';
-                let from_stack = stack.pop().or(Some('x')).unwrap();
-                let expected = flip(&from_stack);
-                if found != expected {
-                    return BracketResult::Invalid((expected, found));
-                }
-            }
-            _ => {
-                println!("unexpected char: {}", char);
-            }
+        if ['(', '[', '{', '<'].contains(&char) {
+            stack.push(char)
+        } else if let Some(invalid) = validate_char(char, &mut stack) {
+            return Chunk::Invalid(invalid);
         }
     }
-    BracketResult::Valid(stack.iter().rev().map(|c| flip(c)).collect())
+    Chunk::Incomplete(stack.iter().rev().map(flip_bracket).collect())
 }
 
 #[cfg(test)]
@@ -132,42 +102,35 @@ mod tests {
 
     #[test]
     fn test_validate_brackets() {
-        vec![
+        let chunk_test_cases = vec![
+            ("{([(<{}[<>[]}>{[]{[(<()>", Chunk::Invalid((']', '}'))),
+            ("[[<[([]))<([[{}[[()]]]", Chunk::Invalid((']', ')'))),
+            ("[{[{({}]{}}([{[{{{}}([]", Chunk::Invalid((')', ']'))),
+            ("[<(<(<(<{}))><([]([]()", Chunk::Invalid(('>', ')'))),
+            ("<{([([[(<>()){}]>(<<{{", Chunk::Invalid((']', '>'))),
             (
                 "[({(<(())[]>[[{[]{<()<>>",
-                BracketResult::Valid(vec!['}', '}', ']', ']', ')', '}', ')', ']']),
+                Chunk::Incomplete("}}]])})]".chars().collect()),
             ),
             (
                 "[(()[<>])]({[<{<<[]>>(",
-                BracketResult::Valid(vec![')', '}', '>', ']', '}', ')']),
-            ),
-            (
-                "{([(<{}[<>[]}>{[]{[(<()>",
-                BracketResult::Invalid((']', '}')),
+                Chunk::Incomplete(")}>]})".chars().collect()),
             ),
             (
                 "(((({<>}<{<{<>}{[]{[]{}",
-                BracketResult::Valid(vec!['}', '}', '>', '}', '>', ')', ')', ')', ')']),
-            ),
-            ("[[<[([]))<([[{}[[()]]]", BracketResult::Invalid((']', ')'))),
-            (
-                "[{[{({}]{}}([{[{{{}}([]",
-                BracketResult::Invalid((')', ']')),
+                Chunk::Incomplete("}}>}>))))".chars().collect()),
             ),
             (
                 "{<[[]]>}<{[{[{[]{()[[[]",
-                BracketResult::Valid(vec![']', ']', '}', '}', ']', '}', ']', '}', '>']),
+                Chunk::Incomplete("]]}}]}]}>".chars().collect()),
             ),
-            ("[<(<(<(<{}))><([]([]()", BracketResult::Invalid(('>', ')'))),
-            ("<{([([[(<>()){}]>(<<{{", BracketResult::Invalid((']', '>'))),
             (
                 "<{([{{}}[<[[[<>{}]]]>[]]",
-                BracketResult::Valid(vec![']', ')', '}', '>']),
+                Chunk::Incomplete("])}>".chars().collect()),
             ),
-        ]
-        .iter()
-        .for_each(|(line, expected)| {
-            assert_eq!(validate_brackets(line), *expected);
+        ];
+        chunk_test_cases.iter().for_each(|(line, expected)| {
+            assert_eq!(parse_to_chunk(line), *expected);
         });
     }
 
