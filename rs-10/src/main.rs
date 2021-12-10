@@ -18,21 +18,17 @@ enum Chunk {
     Invalid((char, char)),
 }
 impl Chunk {
-    fn get_invalid_points(&self) -> i64 {
-        let points_table = map!((')', 3), (']', 57), ('}', 1197), ('>', 25137));
+    fn calc_points(&self) -> i64 {
         match self {
-            Chunk::Invalid((_, found)) => points_table[found],
-            Chunk::Incomplete(_) => 0,
-        }
-    }
-
-    fn get_completion_points(&self) -> i64 {
-        let points_table = map!((')', 1), (']', 2), ('}', 3), ('>', 4));
-        match self {
-            Chunk::Invalid(_) => 0,
-            Chunk::Incomplete(completions) => completions
-                .iter()
-                .fold(0, |sum, completion| sum * 5 + points_table[completion]),
+            Chunk::Incomplete(completions) => {
+                let points_table = map![(')', 1), (']', 2), ('}', 3), ('>', 4)];
+                completions
+                    .iter()
+                    .fold(0, |sum, completion| sum * 5 + points_table[completion])
+            }
+            Chunk::Invalid((_, found)) => {
+                map![(')', 3), (']', 57), ('}', 1197), ('>', 25137)][found]
+            }
         }
     }
 }
@@ -47,7 +43,10 @@ fn part_1(filename: &str) -> i64 {
     fs::read_to_string(filename)
         .unwrap()
         .lines()
-        .map(|line| parse_to_chunk(line).get_invalid_points())
+        .filter_map(|line| match parse_to_chunk(line) {
+            Chunk::Incomplete(_) => None,
+            chunk => Some(chunk.calc_points()),
+        })
         .sum()
 }
 
@@ -57,8 +56,10 @@ fn part_2(filename: &str) -> i64 {
     let mut scores: Vec<_> = fs::read_to_string(filename)
         .unwrap()
         .lines()
-        .map(|line| parse_to_chunk(line).get_completion_points())
-        .filter(|score| score > &0)
+        .filter_map(|line| match parse_to_chunk(line) {
+            Chunk::Invalid(_) => None,
+            chunk => Some(chunk.calc_points()),
+        })
         .collect();
     scores.sort_unstable();
     scores[scores.len() / 2]
