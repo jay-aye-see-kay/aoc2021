@@ -5,7 +5,8 @@ use std::{collections::HashMap, fs};
 
 fn main() {
     let mut octo_grid = get_input("input.test");
-    println!("part 1: {}", octo_grid.run(100));
+    println!("part 1: {}", octo_grid.run_and_count(100));
+    println!("part 2: {}", octo_grid.run_until_all_flash());
 }
 
 type Position = (usize, usize);
@@ -15,6 +16,7 @@ struct OctoGrid {
     grid: HashMap<Position, u32>,
     width: usize,
     height: usize,
+    tick_count: usize,
 }
 
 impl Display for OctoGrid {
@@ -97,11 +99,22 @@ impl OctoGrid {
             }
         });
 
+        self.tick_count += 1;
         flashed_this_tick.len() as i32
     }
 
-    fn run(&mut self, count: i32) -> i32 {
+    fn run_and_count(&mut self, count: i32) -> i32 {
         (0..count).map(|_| self.tick()).sum()
+    }
+
+    fn run_until_all_flash(&mut self) -> i32 {
+        loop {
+            let flash_count = self.tick() as usize;
+            if flash_count == self.grid.iter().len() {
+                break;
+            }
+        }
+        self.tick_count as i32
     }
 }
 
@@ -110,6 +123,7 @@ fn get_input(filename: &str) -> OctoGrid {
         grid: HashMap::new(),
         width: 0,
         height: 0,
+        tick_count: 0,
     };
     fs::read_to_string(filename)
         .unwrap()
@@ -159,14 +173,28 @@ mod tests {
     #[test]
     fn test_part_1_sample() {
         let mut octo_grid = get_input("input.test");
-        let mut flash_count = octo_grid.run(100);
+        let mut flash_count = octo_grid.run_and_count(100);
         assert_eq!(flash_count, 1656);
     }
 
     #[test]
     fn test_part_1_real() {
         let mut octo_grid = get_input("input");
-        let mut flash_count = octo_grid.run(100);
+        let mut flash_count = octo_grid.run_and_count(100);
         assert_eq!(flash_count, 1620);
+    }
+
+    #[test]
+    fn test_part_2_sample() {
+        let mut octo_grid = get_input("input.test");
+        let mut first_all_flash = octo_grid.run_until_all_flash();
+        assert_eq!(first_all_flash, 195);
+    }
+
+    #[test]
+    fn test_part_2_real() {
+        let mut octo_grid = get_input("input");
+        let mut first_all_flash = octo_grid.run_until_all_flash();
+        assert_eq!(first_all_flash, 371);
     }
 }
