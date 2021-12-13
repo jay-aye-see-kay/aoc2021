@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt::{Display, Error, Formatter};
 use std::fs;
 
@@ -17,7 +18,7 @@ enum Fold {
 
 #[derive(Debug)]
 struct Transparency {
-    dots: Vec<Position>,
+    dots: HashSet<Position>,
     folds: Vec<Fold>,
 }
 
@@ -28,7 +29,7 @@ impl Display for Transparency {
         let mut result = String::with_capacity(height * (width + 1));
         for y in 0..height {
             for x in 0..width {
-                let is_dot = self.dots.iter().any(|dot| *dot == (x, y));
+                let is_dot = self.dots.contains(&(x, y));
                 let char_str = if is_dot { '#' } else { '.' };
                 result.push(char_str);
             }
@@ -69,7 +70,7 @@ fn fold_transparency(initial_transparency: &Transparency) -> Transparency {
     let mut new_folds = initial_transparency.folds.clone();
     let active_fold = new_folds.remove(0);
 
-    let mut new_dots: Vec<_> = initial_transparency
+    let new_dots: HashSet<_> = initial_transparency
         .dots
         .iter()
         .map(|(x, y)| match active_fold {
@@ -91,8 +92,6 @@ fn fold_transparency(initial_transparency: &Transparency) -> Transparency {
             }
         })
         .collect();
-    new_dots.sort_unstable();
-    new_dots.dedup();
 
     Transparency {
         folds: new_folds,
@@ -118,8 +117,8 @@ mod tests {
         println!("input: {:?}", input);
 
         assert_eq!(input.dots.len(), 18);
-        assert_eq!(input.dots[0], (6, 10));
-        assert_eq!(input.dots[17], (9, 0));
+        assert_eq!(input.dots.contains(&(6, 10)), true);
+        assert_eq!(input.dots.contains(&(9, 10)), true);
 
         assert_eq!(input.folds.len(), 2);
         assert_eq!(input.folds[0], Fold::Y(7));
