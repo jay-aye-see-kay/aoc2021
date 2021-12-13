@@ -28,7 +28,7 @@ impl Display for Transparency {
         let mut result = String::with_capacity(height * (width + 1));
         for y in 0..height {
             for x in 0..width {
-                let is_dot = self.dots.iter().find(|dot| **dot == (x, y)).is_some();
+                let is_dot = self.dots.iter().any(|dot| *dot == (x, y));
                 let char_str = if is_dot { '#' } else { '.' };
                 result.push(char_str);
             }
@@ -102,7 +102,7 @@ fn fold_transparency(initial_transparency: &Transparency) -> Transparency {
 
 fn fold_transparency_completely(input: &Transparency) -> Transparency {
     let mut folded = fold_transparency(input);
-    while folded.folds.len() > 0 {
+    while !folded.folds.is_empty() {
         folded = fold_transparency(&folded);
     }
     folded
