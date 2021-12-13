@@ -1,10 +1,10 @@
-#![allow(unused)]
-
 use std::fmt::{Display, Error, Formatter};
 use std::fs;
 
 fn main() {
-    println!("Hello, world!");
+    let input = get_input("input");
+    println!("part 1: {}\n", fold_transparency(&input).dots.len());
+    println!("part 2:\n{}\n\n", fold_transparency_completely(&input));
 }
 
 type Position = (usize, usize);
@@ -19,6 +19,23 @@ enum Fold {
 struct Transparency {
     dots: Vec<Position>,
     folds: Vec<Fold>,
+}
+
+impl Display for Transparency {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        let width = self.dots.iter().map(|(x, _)| x).max().unwrap() + 1;
+        let height = self.dots.iter().map(|(_, y)| y).max().unwrap() + 1;
+        let mut result = String::with_capacity(height * (width + 1));
+        for y in 0..height {
+            for x in 0..width {
+                let is_dot = self.dots.iter().find(|dot| **dot == (x, y)).is_some();
+                let char_str = if is_dot { '#' } else { '.' };
+                result.push(char_str);
+            }
+            result.push('\n');
+        }
+        write!(f, "{}", result)
+    }
 }
 
 fn get_input(filename: &str) -> Transparency {
@@ -83,6 +100,14 @@ fn fold_transparency(initial_transparency: &Transparency) -> Transparency {
     }
 }
 
+fn fold_transparency_completely(input: &Transparency) -> Transparency {
+    let mut folded = fold_transparency(input);
+    while folded.folds.len() > 0 {
+        folded = fold_transparency(&folded);
+    }
+    folded
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -113,5 +138,45 @@ mod tests {
         let input = get_input("input");
         let folded = fold_transparency(&input);
         assert_eq!(folded.dots.len(), 592);
+    }
+
+    #[test]
+    fn test_part_2_sample() {
+        let input = get_input("input.test");
+        let folded = fold_transparency_completely(&input);
+        let folded_str = format!("{}", folded);
+
+        let expected_str = "
+#####
+#...#
+#...#
+#...#
+#####
+";
+        let folded_str = folded_str.trim();
+        let expected_str = expected_str.trim();
+        println!("actual:\n{}\n", folded_str);
+        println!("expected:\n{}\n", expected_str);
+        assert_eq!(folded_str, expected_str);
+    }
+    #[test]
+    fn test_part_2_real() {
+        let input = get_input("input");
+        let folded = fold_transparency_completely(&input);
+        let folded_str = format!("{}", folded);
+
+        let expected_str = "
+..##..##...##....##.####.####.#..#.#..#
+...#.#..#.#..#....#.#....#....#.#..#..#
+...#.#....#..#....#.###..###..##...#..#
+...#.#.##.####....#.#....#....#.#..#..#
+#..#.#..#.#..#.#..#.#....#....#.#..#..#
+.##...###.#..#..##..####.#....#..#..##.
+";
+        let folded_str = folded_str.trim();
+        let expected_str = expected_str.trim();
+        println!("actual:\n{}\n", folded_str);
+        println!("expected:\n{}\n", expected_str);
+        assert_eq!(folded_str, expected_str);
     }
 }
