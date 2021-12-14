@@ -30,12 +30,19 @@ fn get_input(filename: &str) -> (Polymer, Rules) {
 }
 
 fn process_polymer(polymer: &mut Polymer, rules: &Rules) -> Polymer {
-    for i in (1..polymer.len()).rev() {
-        println!("i: {:?}", i);
-        let between = rules.get(&(polymer[i - 1], polymer[i])).unwrap();
-        polymer.insert(i, *between)
-    }
-    polymer.to_vec()
+    let mut to_insert: Vec<_> = polymer
+        .windows(2)
+        .map(|window| rules.get(&(window[0], window[1])).unwrap())
+        .rev()
+        .collect();
+
+    polymer
+        .iter()
+        .flat_map(|c| match to_insert.pop() {
+            Some(c2) => vec![*c, *c2],
+            None => vec![*c],
+        })
+        .collect()
 }
 
 fn part_1(polymer: &Polymer, rules: &Rules, steps: i64) -> i64 {
@@ -87,7 +94,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn test_part_2_sample() {
         let (polymer, rules) = get_input("input.test");
         assert_eq!(part_1(&polymer, &rules, 20), 2188189693529)
