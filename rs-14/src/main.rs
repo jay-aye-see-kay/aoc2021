@@ -6,63 +6,45 @@ fn main() {
     println!("part 1: {}", part_1(&polymer, &rules, 10));
 }
 
-#[derive(Debug, PartialEq)]
-struct Rule {
-    from: char,
-    to: char,
-    between: char,
-}
+// (from, to), between
+type Rules = HashMap<(char, char), char>;
 
 type Polymer = Vec<char>;
 
-fn get_input(filename: &str) -> (Polymer, Vec<Rule>) {
+fn get_input(filename: &str) -> (Polymer, Rules) {
     let input_str = fs::read_to_string(filename).unwrap();
 
     let (polymer_str, rules_str) = input_str.split_once("\n\n").unwrap();
-    let rules: Vec<_> = rules_str
+    let rules = rules_str
         .lines()
         .map(|r| {
             let (from_and_to_str, between_str) = r.split_once(" -> ").unwrap();
-            Rule {
-                from: from_and_to_str.chars().nth(0).unwrap(),
-                to: from_and_to_str.chars().nth(1).unwrap(),
-                between: between_str.chars().nth(0).unwrap(),
-            }
+            let from = from_and_to_str.chars().nth(0).unwrap();
+            let to = from_and_to_str.chars().nth(1).unwrap();
+            let between = between_str.chars().nth(0).unwrap();
+            ((from, to), between)
         })
         .collect();
 
     (polymer_str.chars().collect(), rules)
 }
 
-fn process_polymer(polymer: &Polymer, rules: &Vec<Rule>) -> Polymer {
-    let mut to_insert: Vec<_> = polymer
-        .windows(2)
-        .map(|window| {
-            let rule = rules
-                .iter()
-                .find(|rule| rule.from == window[0] && rule.to == window[1])
-                .expect("Could not find rule");
-            rule.between
-        })
-        .rev()
-        .collect();
-
-    polymer
-        .iter()
-        .flat_map(|c| match to_insert.pop() {
-            Some(c2) => vec![*c, c2],
-            None => vec![*c],
-        })
-        .collect()
+fn process_polymer(polymer: &mut Polymer, rules: &Rules) -> Polymer {
+    for i in (1..polymer.len()).rev() {
+        println!("i: {:?}", i);
+        let between = rules.get(&(polymer[i - 1], polymer[i])).unwrap();
+        polymer.insert(i, *between)
+    }
+    polymer.to_vec()
 }
 
-fn part_1(polymer: &Polymer, rules: &Vec<Rule>, steps: i32) -> i32 {
+fn part_1(polymer: &Polymer, rules: &Rules, steps: i64) -> i64 {
     let mut polymer = polymer.clone();
     for _ in 0..steps {
-        polymer = process_polymer(&polymer, rules);
+        polymer = process_polymer(&mut polymer, rules);
     }
 
-    let mut frequencies: HashMap<char, i32> = HashMap::new();
+    let mut frequencies: HashMap<char, i64> = HashMap::new();
     for char in polymer {
         *frequencies.entry(char).or_insert(0) += 1;
     }
@@ -81,28 +63,14 @@ mod tests {
     fn test_get_input() {
         let (polymer, rules) = get_input("input.test");
         assert_eq!(polymer, vec!['N', 'N', 'C', 'B']);
-        assert_eq!(
-            rules[0],
-            Rule {
-                from: 'C',
-                to: 'H',
-                between: 'B'
-            }
-        );
-        assert_eq!(
-            rules[15],
-            Rule {
-                from: 'C',
-                to: 'N',
-                between: 'C'
-            }
-        );
+        assert_eq!(rules.get(&('C', 'H')).unwrap(), &'B');
+        assert_eq!(rules.get(&('C', 'N')).unwrap(), &'C');
     }
 
     #[test]
     fn test_process_polymer() {
-        let (polymer, rules) = get_input("input.test");
-        let polymer = process_polymer(&polymer, &rules);
+        let (mut polymer, rules) = get_input("input.test");
+        let polymer = process_polymer(&mut polymer, &rules);
         assert_eq!(polymer, vec!['N', 'C', 'N', 'B', 'C', 'H', 'B'])
     }
 
@@ -116,5 +84,12 @@ mod tests {
     fn test_part_1_real() {
         let (polymer, rules) = get_input("input");
         assert_eq!(part_1(&polymer, &rules, 10), 2447)
+    }
+
+    #[test]
+    #[ignore]
+    fn test_part_2_sample() {
+        let (polymer, rules) = get_input("input.test");
+        assert_eq!(part_1(&polymer, &rules, 20), 2188189693529)
     }
 }
