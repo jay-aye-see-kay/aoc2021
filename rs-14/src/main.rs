@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 use std::fs;
 
-// split into pairs each pair creates two new pairs each tick
-// set up a table of input -> creates ie "AB" -> ("AC", CB")
-
 fn main() {
     let (polymer, rules) = get_input("input");
-    println!("part 1: {}", part_1(&polymer, &rules, 14));
-    println!("part 2: {}", part_2(&polymer, &rules));
+    println!("part 1: {}", grow_polymer(&polymer, &rules, 10));
+    println!("part 2: {}", grow_polymer(&polymer, &rules, 40));
 }
 
-// (from, to), between
-type Rules = HashMap<(char, char), char>;
+#[derive(Clone)]
+struct Polymer {
+    pairs: HashMap<String, i64>,
+    first_char: String,
+}
 
-type Polymer = Vec<char>;
+type Rules = HashMap<String, (String, String)>;
 
 fn get_input(filename: &str) -> (Polymer, Rules) {
     let input_str = fs::read_to_string(filename).unwrap();
@@ -26,106 +26,62 @@ fn get_input(filename: &str) -> (Polymer, Rules) {
             let from = from_and_to_str.chars().nth(0).unwrap();
             let to = from_and_to_str.chars().nth(1).unwrap();
             let between = between_str.chars().nth(0).unwrap();
-            ((from, to), between)
+            let creates = (
+                from.to_string() + &between.to_string(),
+                between.to_string() + &to.to_string(),
+            );
+            (from_and_to_str.to_string(), creates)
         })
         .collect();
 
-    (polymer_str.chars().collect(), rules)
-}
-
-fn process_polymer(polymer: &Polymer, rules: &Rules) -> Polymer {
-    polymer
+    let polymer_pairs: Vec<String> = polymer_str
+        .chars()
+        .collect::<Vec<_>>()
         .windows(2)
-        .enumerate()
-        .flat_map(|(i, window)| {
-            let between = rules.get(&(window[0], window[1])).unwrap();
-            if i == 0 {
-                vec![window[0], *between, window[1]]
-            } else {
-                vec![*between, window[1]]
-            }
-        })
-        .collect()
-}
+        .map(|window| window[0].to_string() + &window[1].to_string())
+        .collect();
 
-fn process_stream<'a>(
-    polymer: impl Iterator<Item = &'a char>,
-    rules: &'a Rules,
-) -> impl Iterator<Item = &'a char> {
-    // fn process_stream<'a>(polymer: Iter<'a, char>, rules: &Rules) -> Iter<'a, char> {
-    let mut prev: Option<&char> = None;
-
-    polymer.flat_map(move |char| {
-        let between = match prev {
-            Some(prev) => Some(rules.get(&(*prev, *char)).unwrap()),
-            None => None,
-        };
-        prev = Some(char);
-        match between {
-            Some(between) => vec![between, char],
-            None => vec![char],
-        }
-    })
-}
-
-fn get_min_max(polymer: &Polymer) -> (i64, i64) {
-    let mut frequencies: HashMap<char, i64> = HashMap::new();
-    for char in polymer {
-        *frequencies.entry(*char).or_insert(0) += 1;
+    let mut polymer_pairs_batched: HashMap<String, i64> = HashMap::new();
+    for pair in polymer_pairs {
+        *polymer_pairs_batched.entry(pair).or_insert(0) += 1;
     }
 
-    println!("frequencies: {:?}", frequencies);
-    let max = frequencies.iter().map(|(_, n)| n).max().unwrap();
-    let min = frequencies.iter().map(|(_, n)| n).min().unwrap();
-
-    (*min, *max)
+    (
+        Polymer {
+            pairs: polymer_pairs_batched,
+            first_char: polymer_str.chars().nth(0).unwrap().to_string(),
+        },
+        rules,
+    )
 }
 
-fn get_min_max_stream<'a>(polymer: impl Iterator<Item = &'a char>) -> (i64, i64) {
-    let mut frequencies: HashMap<char, i64> = HashMap::new();
-    for char in polymer {
-        *frequencies.entry(*char).or_insert(0) += 1;
+fn increment_polymer(polymer: &Polymer, rules: &Rules) -> Polymer {
+    let mut new_polymer_pairs: HashMap<String, i64> = HashMap::new();
+    for (pair, count) in &polymer.pairs {
+        let (new_pair_1, new_pair_2) = rules.get(pair).unwrap();
+        *new_polymer_pairs.entry(new_pair_1.to_string()).or_insert(0) += count;
+        *new_polymer_pairs.entry(new_pair_2.to_string()).or_insert(0) += count;
     }
-
-    println!("frequencies: {:?}", frequencies);
-    let max = frequencies.iter().map(|(_, n)| n).max().unwrap();
-    let min = frequencies.iter().map(|(_, n)| n).min().unwrap();
-
-    (*min, *max)
+    Polymer {
+        pairs: new_polymer_pairs,
+        first_char: polymer.first_char.to_string(),
+    }
 }
 
-fn part_2(polymer: &Polymer, rules: &Rules) -> i64 {
-    let s1 = process_stream(polymer.iter(), rules);
-    let s2 = process_stream(s1, rules);
-    let s3 = process_stream(s2, rules);
-    let s4 = process_stream(s3, rules);
-    let s5 = process_stream(s4, rules);
-    let s6 = process_stream(s5, rules);
-    let s7 = process_stream(s6, rules);
-    let s8 = process_stream(s7, rules);
-    let s9 = process_stream(s8, rules);
-    let s10 = process_stream(s9, rules);
-    // let s11 = process_stream(s10, rules);
-    // let s12 = process_stream(s11, rules);
-    // let s13 = process_stream(s12, rules);
-    // let s14 = process_stream(s13, rules);
-    // let s15 = process_stream(s14, rules);
-    // let s16 = process_stream(s15, rules);
-    // let s17 = process_stream(s16, rules);
-    // let s18 = process_stream(s17, rules);
-    // let s19 = process_stream(s18, rules);
-    // let s20 = process_stream(s19, rules);
-
-    let (min, max) = get_min_max_stream(s10);
-    max - min
-}
-
-fn part_1(polymer: &Polymer, rules: &Rules, steps: i64) -> i64 {
-    let mut polymer = polymer.clone();
+fn grow_polymer(polymer: &Polymer, rules: &Rules, steps: i64) -> i64 {
+    let mut polymer: Polymer = polymer.clone();
     for _ in 0..steps {
-        polymer = process_polymer(&polymer, rules);
+        polymer = increment_polymer(&polymer, rules);
     }
-    let (min, max) = get_min_max(&polymer);
+    let mut sum_of_second_values: HashMap<String, i64> = HashMap::new();
+    for (k, v) in polymer.pairs {
+        let second_char = k.chars().nth(1).unwrap().to_string();
+        *sum_of_second_values.entry(second_char).or_insert(0) += v;
+    }
+    *sum_of_second_values.entry(polymer.first_char).or_insert(0) += 1;
+
+    let max = sum_of_second_values.values().max().unwrap();
+    let min = sum_of_second_values.values().min().unwrap();
     max - min
 }
 
@@ -136,64 +92,54 @@ mod tests {
     #[test]
     fn test_get_input() {
         let (polymer, rules) = get_input("input.test");
-        assert_eq!(polymer, vec!['N', 'N', 'C', 'B']);
-        assert_eq!(rules.get(&('C', 'H')).unwrap(), &'B');
-        assert_eq!(rules.get(&('C', 'N')).unwrap(), &'C');
-    }
-
-    #[test]
-    fn test_process_polymer() {
-        let (polymer, rules) = get_input("input.test");
-        let polymer = process_polymer(&polymer, &rules);
-        assert_eq!(polymer, vec!['N', 'C', 'N', 'B', 'C', 'H', 'B'])
-    }
-
-    #[test]
-    fn test_process_polymer_stream() {
-        let (polymer, rules) = get_input("input.test");
-        let polymer = process_stream(polymer.iter(), &rules);
+        assert_eq!(polymer.pairs.get("NN").unwrap(), &1);
+        assert_eq!(polymer.pairs.get("NC").unwrap(), &1);
+        assert_eq!(polymer.pairs.get("CB").unwrap(), &1);
         assert_eq!(
-            polymer.collect::<Vec<_>>(),
-            vec![&'N', &'C', &'N', &'B', &'C', &'H', &'B']
-        )
+            rules.get("CH").unwrap(),
+            &("CB".to_string(), "BH".to_string())
+        );
+        assert_eq!(
+            rules.get("CN").unwrap(),
+            &("CC".to_string(), "CN".to_string())
+        );
+    }
+
+    #[test]
+    fn test_increment_polymer() {
+        let (polymer, rules) = get_input("input.test");
+        let polymer = increment_polymer(&polymer, &rules);
+        assert_eq!(polymer.pairs.get("BC").unwrap(), &1);
+        assert_eq!(polymer.pairs.get("CH").unwrap(), &1);
+        assert_eq!(polymer.pairs.get("CN").unwrap(), &1);
+        assert_eq!(polymer.pairs.get("HB").unwrap(), &1);
+        assert_eq!(polymer.pairs.get("NB").unwrap(), &1);
+        assert_eq!(polymer.pairs.get("NC").unwrap(), &1);
+        let polymer = increment_polymer(&polymer, &rules);
+        assert_eq!(polymer.pairs.get("BB").unwrap(), &2);
     }
 
     #[test]
     fn test_part_1_sample() {
         let (polymer, rules) = get_input("input.test");
-        assert_eq!(part_1(&polymer, &rules, 10), 1588)
+        assert_eq!(grow_polymer(&polymer, &rules, 10), 1588)
     }
 
     #[test]
     fn test_part_1_real() {
         let (polymer, rules) = get_input("input");
-        assert_eq!(part_1(&polymer, &rules, 10), 2447)
+        assert_eq!(grow_polymer(&polymer, &rules, 10), 2447)
     }
 
     #[test]
-    fn test_part_2_stream() {
-        let (polymer, rules) = get_input("input.test");
-        assert_eq!(part_2(&polymer, &rules), 1588)
-    }
-
-    #[test]
-    // #[ignore]
     fn test_part_2_sample() {
-        let (mut polymer, rules) = get_input("input.test");
-        for _ in 0..7 {
-            polymer = process_polymer(&polymer, &rules);
-            println!(
-                "polymer: {:?}",
-                polymer
-                    .iter()
-                    .map(|c| c.to_string())
-                    .collect::<Vec<_>>()
-                    .join("")
-            );
-        }
-        get_min_max(&polymer);
+        let (polymer, rules) = get_input("input.test");
+        assert_eq!(grow_polymer(&polymer, &rules, 40), 2188189693529)
+    }
 
-        assert!(false);
-        // assert_eq!(part_1(&polymer, &rules, 20), 2188189693529)
+    #[test]
+    fn test_part_2_real() {
+        let (polymer, rules) = get_input("input");
+        assert_eq!(grow_polymer(&polymer, &rules, 40), 3018019237563)
     }
 }
