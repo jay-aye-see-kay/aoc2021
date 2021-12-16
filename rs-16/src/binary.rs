@@ -11,7 +11,7 @@ impl Binary {
         self.bits[index] as usize
     }
 
-    pub fn to_decimal(&self) -> i32 {
+    pub fn to_decimal(&self) -> i64 {
         let mut result = 0;
         for (i, bit) in self.bits.iter().rev().enumerate() {
             if *bit {

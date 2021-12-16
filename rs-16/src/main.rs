@@ -18,6 +18,8 @@ macro_rules! map {
 fn main() {
     let input = fs::read_to_string("input").unwrap();
     println!("part 1: {}", count_version_numbers(&input.trim()));
+    let (packet, _) = parse_to_packets(&str_to_binary(&input.trim()));
+    println!("part 2: {}", compute_packet(&packet));
 }
 
 fn str_to_binary(input: &str) -> String {
@@ -44,14 +46,14 @@ fn str_to_binary(input: &str) -> String {
 
 #[derive(Debug, PartialEq)]
 struct LiteralPacket {
-    packet_version: Binary,
-    value: Binary,
+    packet_version: i64,
+    value: i64,
 }
 
 #[derive(Debug, PartialEq)]
 struct OperatorPacket {
-    packet_version: Binary,
-    packet_type: Binary,
+    packet_version: i64,
+    packet_type: i64,
     packets: Vec<Packet>,
 }
 
@@ -63,11 +65,16 @@ enum Packet {
 
 #[derive(Debug, PartialEq)]
 enum ExitCondition {
-    BitLength(usize),
-    PacketCount(usize),
+    BitLength(i64),
+    PacketCount(i64),
 }
 
-fn split_bits(binary_str: &str) -> (Packet, usize) {
+fn binary_str_to_int(binary_str: &str) -> i64 {
+    println!("binary_str: {:?}", binary_str);
+    binary_str.parse::<Binary>().unwrap().to_decimal() as i64
+}
+
+fn parse_to_packets(binary_str: &str) -> (Packet, i64) {
     let packet_version = &binary_str[..3];
     let packet_type = &binary_str[3..6];
 
@@ -75,7 +82,6 @@ fn split_bits(binary_str: &str) -> (Packet, usize) {
     if packet_type == "100" {
         let increment: usize = 5;
         let mut index: usize = 6;
-        let mut digits: Vec<Binary> = vec![];
         let mut digit_str = "".to_string();
         loop {
             let should_continue = &binary_str[index..index + 1] == "1";
@@ -88,10 +94,10 @@ fn split_bits(binary_str: &str) -> (Packet, usize) {
             }
         }
         let packet = Packet::Literal(LiteralPacket {
-            packet_version: packet_version.parse().unwrap(),
-            value: digit_str.parse().unwrap(),
+            packet_version: binary_str_to_int(packet_version),
+            value: binary_str_to_int(&digit_str),
         });
-        return (packet, index);
+        return (packet, index as i64);
     }
     // }}} past here it must be operator type
 
@@ -102,19 +108,13 @@ fn split_bits(binary_str: &str) -> (Packet, usize) {
         true => {
             exit_cond_str_end = 22;
             let str_range = exit_cond_str_start..exit_cond_str_end;
-            let length = binary_str[str_range]
-                .parse::<Binary>()
-                .unwrap()
-                .to_decimal() as usize;
+            let length = binary_str_to_int(&binary_str[str_range]);
             ExitCondition::BitLength(length)
         }
         false => {
             exit_cond_str_end = 18;
             let str_range = exit_cond_str_start..exit_cond_str_end;
-            let length = binary_str[str_range]
-                .parse::<Binary>()
-                .unwrap()
-                .to_decimal() as usize;
+            let length = binary_str_to_int(&binary_str[str_range]);
             ExitCondition::PacketCount(length)
         }
     };
@@ -126,26 +126,26 @@ fn split_bits(binary_str: &str) -> (Packet, usize) {
     let mut packets = vec![];
 
     while !exit_condition_satisfied(&exit_condition, length_consumed, packets_consumed) {
-        let (sub_packet, consumed) = split_bits(&binary_str[index..]);
+        let (sub_packet, consumed) = parse_to_packets(&binary_str[index..]);
         packets.push(sub_packet);
-        index += consumed;
+        index += consumed as usize;
         length_consumed += consumed;
         packets_consumed += 1;
     }
 
     let packet = Packet::Operator(OperatorPacket {
-        packet_version: packet_version.parse().unwrap(),
-        packet_type: packet_type.parse().unwrap(),
+        packet_version: binary_str_to_int(packet_version),
+        packet_type: binary_str_to_int(packet_type),
         packets,
     });
 
-    return (packet, index);
+    return (packet, index as i64);
 }
 
 fn exit_condition_satisfied(
     condition: &ExitCondition,
-    length_consumed: usize,
-    packets_consumed: usize,
+    length_consumed: i64,
+    packets_consumed: i64,
 ) -> bool {
     match condition {
         ExitCondition::BitLength(exit_count) => length_consumed >= *exit_count,
@@ -153,11 +153,11 @@ fn exit_condition_satisfied(
     }
 }
 
-fn sum_packet_version_numbers(packet: Packet) -> i32 {
+fn sum_packet_version_numbers(packet: Packet) -> i64 {
     match packet {
-        Packet::Literal(packet) => packet.packet_version.to_decimal(),
+        Packet::Literal(packet) => packet.packet_version,
         Packet::Operator(packet) => {
-            let mut sum = packet.packet_version.to_decimal();
+            let mut sum = packet.packet_version;
             for sub_packet in packet.packets {
                 sum += sum_packet_version_numbers(sub_packet);
             }
@@ -166,10 +166,54 @@ fn sum_packet_version_numbers(packet: Packet) -> i32 {
     }
 }
 
-fn count_version_numbers(input: &str) -> i32 {
+fn count_version_numbers(input: &str) -> i64 {
     let binary_str = str_to_binary(input);
-    let (packet, _) = split_bits(&binary_str);
+    let (packet, _) = parse_to_packets(&binary_str);
     sum_packet_version_numbers(packet)
+}
+
+fn compute_packet(packet: &Packet) -> i64 {
+    match packet {
+        Packet::Literal(packet) => packet.value,
+        Packet::Operator(packet) => match packet.packet_type {
+            0 => packet.packets.iter().map(|p| compute_packet(p)).sum(),
+            1 => packet.packets.iter().map(|p| compute_packet(p)).product(),
+            2 => packet
+                .packets
+                .iter()
+                .map(|p| compute_packet(p))
+                .min()
+                .unwrap(),
+            3 => packet
+                .packets
+                .iter()
+                .map(|p| compute_packet(p))
+                .max()
+                .unwrap(),
+            5 => {
+                let computed: Vec<_> = packet.packets.iter().map(|p| compute_packet(p)).collect();
+                if computed.len() != 2 {
+                    panic!("more than packet requires exactly two sub packets")
+                }
+                (computed[0] > computed[1]) as i64
+            }
+            6 => {
+                let computed: Vec<_> = packet.packets.iter().map(|p| compute_packet(p)).collect();
+                if computed.len() != 2 {
+                    panic!("less than packet requires exactly two sub packets")
+                }
+                (computed[0] < computed[1]) as i64
+            }
+            7 => {
+                let computed: Vec<_> = packet.packets.iter().map(|p| compute_packet(p)).collect();
+                if computed.len() != 2 {
+                    panic!("less than packet requires exactly two sub packets")
+                }
+                (computed[0] == computed[1]) as i64
+            }
+            _ => panic!("unknown packet type: {}", packet.packet_type),
+        },
+    }
 }
 
 #[cfg(test)]
@@ -186,13 +230,13 @@ mod tests {
     }
 
     #[test]
-    fn test_split_bits_literal() {
+    fn test_parse_to_packets_literal() {
         assert_eq!(
-            split_bits("110100101111111000101000"),
+            parse_to_packets("110100101111111000101000"),
             (
                 Packet::Literal(LiteralPacket {
-                    packet_version: "110".parse().unwrap(),
-                    value: "011111100101".parse().unwrap(),
+                    packet_version: 6,
+                    value: 2021,
                 }),
                 21
             )
@@ -220,22 +264,22 @@ mod tests {
     }
 
     #[test]
-    fn test_split_bits_two_sub_packets() {
+    fn test_parse_to_packets_two_sub_packets() {
         assert_eq!(
-            split_bits("00111000000000000110111101000101001010010001001000000000").0,
+            parse_to_packets("00111000000000000110111101000101001010010001001000000000").0,
             Packet::Operator(OperatorPacket {
-                packet_version: "001".parse().unwrap(),
-                packet_type: "110".parse().unwrap(),
+                packet_version: 1,
+                packet_type: 6,
                 packets: vec![
                     Packet::Literal(LiteralPacket {
                         // 110 100 01010
-                        packet_version: "110".parse().unwrap(),
-                        value: "1010".parse().unwrap(),
+                        packet_version: 6,
+                        value: 10,
                     }),
                     Packet::Literal(LiteralPacket {
                         // 010 100 10001 00100
-                        packet_version: "010".parse().unwrap(),
-                        value: "00010100".parse().unwrap(),
+                        packet_version: 2,
+                        value: 20,
                     }),
                 ]
             })
@@ -243,40 +287,40 @@ mod tests {
     }
 
     #[test]
-    fn test_split_bits_three_sub_packets() {
+    fn test_parse_to_packets_three_sub_packets() {
         let (packet, consusumed) =
-            split_bits("11101110000000001101010000001100100000100011000001100000");
+            parse_to_packets("11101110000000001101010000001100100000100011000001100000");
 
         assert_eq!(consusumed, 51);
 
         match packet {
             Packet::Literal(_) => assert!(false),
             Packet::Operator(packet) => {
-                assert_eq!(packet.packet_version, "111".parse().unwrap());
-                assert_eq!(packet.packet_type, "011".parse().unwrap());
+                assert_eq!(packet.packet_version, 7);
+                assert_eq!(packet.packet_type, 3);
                 assert_eq!(packet.packets.len(), 3);
                 assert_eq!(
                     packet.packets[0],
                     Packet::Literal(LiteralPacket {
                         // 010 100 00001
-                        packet_version: "010".parse().unwrap(),
-                        value: "0001".parse().unwrap(),
+                        packet_version: 2,
+                        value: 1,
                     }),
                 );
                 assert_eq!(
                     packet.packets[1],
                     Packet::Literal(LiteralPacket {
                         // 100 100 00010
-                        packet_version: "100".parse().unwrap(),
-                        value: "0010".parse().unwrap(),
+                        packet_version: 4,
+                        value: 2,
                     }),
                 );
                 assert_eq!(
                     packet.packets[2],
                     Packet::Literal(LiteralPacket {
                         // 001 100 00011
-                        packet_version: "001".parse().unwrap(),
-                        value: "0011".parse().unwrap(),
+                        packet_version: 1,
+                        value: 3,
                     }),
                 );
             }
@@ -295,5 +339,56 @@ mod tests {
     fn test_part_1_real() {
         let input = fs::read_to_string("input").unwrap();
         assert_eq!(count_version_numbers(&input.trim()), 854);
+    }
+
+    #[test]
+    fn test_compute_sum() {
+        let (packet, _) = parse_to_packets(&str_to_binary("C200B40A82"));
+        assert_eq!(compute_packet(&packet), 3);
+    }
+
+    #[test]
+    fn test_compute_product() {
+        let (packet, _) = parse_to_packets(&str_to_binary("04005AC33890"));
+        assert_eq!(compute_packet(&packet), 54);
+    }
+
+    #[test]
+    fn test_compute_min() {
+        let (packet, _) = parse_to_packets(&str_to_binary("880086C3E88112"));
+        assert_eq!(compute_packet(&packet), 7);
+    }
+
+    #[test]
+    fn test_compute_max() {
+        let (packet, _) = parse_to_packets(&str_to_binary("CE00C43D881120"));
+        assert_eq!(compute_packet(&packet), 9);
+    }
+
+    #[test]
+    fn test_compute_less_than() {
+        let (packet, _) = parse_to_packets(&str_to_binary("D8005AC2A8F0"));
+        assert_eq!(compute_packet(&packet), 1);
+    }
+
+    #[test]
+    fn test_compute_more_than() {
+        let (packet, _) = parse_to_packets(&str_to_binary("F600BC2D8F"));
+        assert_eq!(compute_packet(&packet), 0);
+    }
+
+    #[test]
+    fn test_compute_equal() {
+        let (packet, _) = parse_to_packets(&str_to_binary("9C005AC2F8F0"));
+        assert_eq!(compute_packet(&packet), 0);
+        let (packet, _) = parse_to_packets(&str_to_binary("9C0141080250320F1802104A08"));
+        assert_eq!(compute_packet(&packet), 1);
+    }
+
+    #[test]
+    fn test_part_2_real() {
+        let input = fs::read_to_string("input").unwrap();
+        let (packet, _) = parse_to_packets(&str_to_binary(&input.trim()));
+        assert_eq!(compute_packet(&packet), 186189840660);
     }
 }
