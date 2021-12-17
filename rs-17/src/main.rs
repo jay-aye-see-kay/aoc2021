@@ -1,7 +1,10 @@
 #![allow(unused)]
 
+use std::collections::{HashMap, HashSet};
+
 fn main() {
-    println!("Hello, world!");
+    let part_1 = simulate_many(&Area::new(192, 251, -89, -59), &(-100, -100), &(1000, 1000));
+    println!("part 1: {}", part_1);
 }
 
 type Position = (i32, i32);
@@ -52,19 +55,46 @@ fn step(position: &mut Position, velocity: &mut Velocity) {
     velocity.1 -= 1;
 }
 
-fn simulate(initial_velocity: &Velocity, target_area: &Area) -> bool {
+/// returns None if doesn't hit, otherwise returns the maximum hight reached
+fn simulate(initial_velocity: &Velocity, target_area: &Area) -> Option<i32> {
     let mut current_position = (0, 0);
     let mut current_velocity = *initial_velocity;
 
+    let mut max_height = i32::min_value();
     let mut iter_count = 0;
     while !target_area.has_past(&current_position) && iter_count < 100 {
         iter_count += 1;
         step(&mut current_position, &mut current_velocity);
+        if current_position.1 > max_height {
+            max_height = current_position.1;
+        }
         if target_area.contains(&current_position) {
-            return true;
+            return Some(max_height);
         }
     }
-    false
+    None
+}
+
+fn simulate_many(target_area: &Area, velocity_min: &Velocity, velocity_max: &Velocity) -> i32 {
+    let mut valid_targets = HashMap::new();
+    for x_velocity in velocity_min.0..=velocity_max.0 {
+        for y_velocity in velocity_min.1..=velocity_max.1 {
+            let velocity = (x_velocity, y_velocity);
+            if let Some(max_height) = simulate(&velocity, target_area) {
+                valid_targets.insert(velocity, max_height);
+            }
+        }
+    }
+    let max_height = valid_targets.values().max().unwrap();
+    let initial_velocities_at_max_height: HashMap<&Velocity, &i32> = valid_targets
+        .iter()
+        .filter(|(_, height)| **height > (*max_height - 100))
+        .collect();
+    println!(
+        "initial_velocity_at_max_height: {:?}",
+        initial_velocities_at_max_height
+    );
+    *max_height
 }
 
 #[cfg(test)]
@@ -82,18 +112,38 @@ mod tests {
 
     #[test]
     fn test_simulate_miss() {
-        assert_eq!(simulate(&(5, 2), &Area::new(20, 30, -10, -5)), false);
+        assert_eq!(simulate(&(5, 2), &Area::new(20, 30, -10, -5)), None);
     }
 
     #[test]
     fn test_simulate_hits() {
-        assert_eq!(simulate(&(7, 2), &Area::new(20, 30, -10, -5)), true);
-        assert_eq!(simulate(&(6, 3), &Area::new(20, 30, -10, -5)), true);
-        assert_eq!(simulate(&(9, 0), &Area::new(20, 30, -10, -5)), true);
+        assert_eq!(simulate(&(7, 2), &Area::new(20, 30, -10, -5)), Some(3));
+        assert_eq!(simulate(&(6, 3), &Area::new(20, 30, -10, -5)), Some(6));
+        assert_eq!(simulate(&(9, 0), &Area::new(20, 30, -10, -5)), Some(0));
+        assert_eq!(simulate(&(6, 9), &Area::new(20, 30, -10, -5)), Some(45));
     }
 
     #[test]
     fn test_simulate_pass_through() {
-        assert_eq!(simulate(&(17, -4), &Area::new(20, 30, -10, -5)), false);
+        assert_eq!(simulate(&(17, -4), &Area::new(20, 30, -10, -5)), None);
+    }
+
+    #[test]
+    fn test_part_1_sample() {
+        assert_eq!(
+            simulate_many(&Area::new(20, 30, -10, -5), &(0, 0), &(10, 10)),
+            46
+        );
+    }
+
+    #[test]
+    #[ignore]
+    fn test_part_1_real() {
+        // not 903
+        // not 946 (higher)
+        assert_eq!(
+            simulate_many(&Area::new(192, 251, -89, -59), &(-100, -100), &(1000, 1000)),
+            0
+        );
     }
 }
