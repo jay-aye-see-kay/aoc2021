@@ -2,8 +2,11 @@
 
 use std::collections::{HashMap, HashSet};
 
+// sample input: target area: x=20..30, y=-10..-5
+// puzzle input: target area: x=192..251, y=-89..-59
+
 fn main() {
-    let part_1 = simulate_many(&Area::new(192, 251, -89, -59), &(-100, -100), &(1000, 1000));
+    let part_1 = simulate_many(&Area::new(192, 251, -89, -59), &(0, 0), &(100, 100));
     println!("part 1: {}", part_1);
 }
 
@@ -62,7 +65,7 @@ fn simulate(initial_velocity: &Velocity, target_area: &Area) -> Option<i32> {
 
     let mut max_height = i32::min_value();
     let mut iter_count = 0;
-    while !target_area.has_past(&current_position) && iter_count < 100 {
+    while !target_area.has_past(&current_position) && iter_count < 10000 {
         iter_count += 1;
         step(&mut current_position, &mut current_velocity);
         if current_position.1 > max_height {
@@ -86,14 +89,6 @@ fn simulate_many(target_area: &Area, velocity_min: &Velocity, velocity_max: &Vel
         }
     }
     let max_height = valid_targets.values().max().unwrap();
-    let initial_velocities_at_max_height: HashMap<&Velocity, &i32> = valid_targets
-        .iter()
-        .filter(|(_, height)| **height > (*max_height - 100))
-        .collect();
-    println!(
-        "initial_velocity_at_max_height: {:?}",
-        initial_velocities_at_max_height
-    );
     *max_height
 }
 
@@ -132,18 +127,15 @@ mod tests {
     fn test_part_1_sample() {
         assert_eq!(
             simulate_many(&Area::new(20, 30, -10, -5), &(0, 0), &(10, 10)),
-            46
+            45
         );
     }
 
     #[test]
-    #[ignore]
     fn test_part_1_real() {
-        // not 903
-        // not 946 (higher)
         assert_eq!(
-            simulate_many(&Area::new(192, 251, -89, -59), &(-100, -100), &(1000, 1000)),
-            0
+            simulate_many(&Area::new(192, 251, -89, -59), &(0, 0), &(100, 100)),
+            3916
         );
     }
 }
