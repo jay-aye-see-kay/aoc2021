@@ -1,18 +1,20 @@
-#![allow(unused)]
-
-use std::collections::{HashMap, HashSet};
+use std::cmp::Ordering;
+use std::collections::HashMap;
 
 // sample input: target area: x=20..30, y=-10..-5
 // puzzle input: target area: x=192..251, y=-89..-59
 
 fn main() {
-    let part_1 = simulate_many(&Area::new(192, 251, -89, -59), &(0, 0), &(100, 100));
-    println!("part 1: {}", part_1);
+    let (max_height, count) =
+        simulate_many(&Area::new(192, 251, -89, -59), &(-100, -100), &(1000, 1000));
+    println!("part 1: {}", max_height);
+    println!("part 2: {}", count);
 }
 
 type Position = (i32, i32);
 type Velocity = (i32, i32);
 
+#[derive(Debug)]
 struct Area {
     x_min: i32,
     x_max: i32,
@@ -40,7 +42,7 @@ impl Area {
 
     /// check if the position has past the area
     fn has_past(&self, position: &Position) -> bool {
-        position.0 < self.x_max && position.1 < self.y_max
+        position.0 > self.x_max || position.1 < self.y_min
     }
 }
 
@@ -48,11 +50,13 @@ fn step(position: &mut Position, velocity: &mut Velocity) {
     // The probe's x and y position increases by its x and y velocity.
     position.0 += velocity.0;
     position.1 += velocity.1;
-    // Due to drag, the probe's x velocity changes by 1 toward the value 0; that is, it decreases by 1 if it is greater than 0, increases by 1 if it is less than 0, or does not change if it is already 0.
-    if velocity.0 > 0 {
-        velocity.0 -= 1
-    } else if velocity.0 < 0 {
-        velocity.0 += 1
+    // Due to drag, the probe's x velocity changes by 1 toward the value 0; that is, it decreases
+    // by 1 if it is greater than 0, increases by 1 if it is less than 0, or does not change if it
+    // is already 0.
+    velocity.0 += match velocity.0.cmp(&0) {
+        Ordering::Less => 1,
+        Ordering::Greater => -1,
+        Ordering::Equal => 0,
     };
     // Due to gravity, the probe's y velocity decreases by 1.
     velocity.1 -= 1;
@@ -64,9 +68,7 @@ fn simulate(initial_velocity: &Velocity, target_area: &Area) -> Option<i32> {
     let mut current_velocity = *initial_velocity;
 
     let mut max_height = i32::min_value();
-    let mut iter_count = 0;
-    while !target_area.has_past(&current_position) && iter_count < 10000 {
-        iter_count += 1;
+    while !target_area.has_past(&current_position) {
         step(&mut current_position, &mut current_velocity);
         if current_position.1 > max_height {
             max_height = current_position.1;
@@ -78,7 +80,11 @@ fn simulate(initial_velocity: &Velocity, target_area: &Area) -> Option<i32> {
     None
 }
 
-fn simulate_many(target_area: &Area, velocity_min: &Velocity, velocity_max: &Velocity) -> i32 {
+fn simulate_many(
+    target_area: &Area,
+    velocity_min: &Velocity,
+    velocity_max: &Velocity,
+) -> (i32, i32) {
     let mut valid_targets = HashMap::new();
     for x_velocity in velocity_min.0..=velocity_max.0 {
         for y_velocity in velocity_min.1..=velocity_max.1 {
@@ -89,7 +95,8 @@ fn simulate_many(target_area: &Area, velocity_min: &Velocity, velocity_max: &Vel
         }
     }
     let max_height = valid_targets.values().max().unwrap();
-    *max_height
+    let count = valid_targets.len() as i32;
+    (*max_height, count)
 }
 
 #[cfg(test)]
@@ -103,6 +110,14 @@ mod tests {
         assert_eq!(area.contains(&(20, -10)), true);
         assert_eq!(area.contains(&(30, -5)), true);
         assert_eq!(area.contains(&(25, -4)), false);
+    }
+
+    #[test]
+    fn test_area_has_past() {
+        let area = Area::new(20, 30, -10, -5);
+        assert_eq!(area.has_past(&(30, -10)), false);
+        assert_eq!(area.has_past(&(31, -10)), true);
+        assert_eq!(area.has_past(&(30, -11)), true);
     }
 
     #[test]
@@ -124,18 +139,18 @@ mod tests {
     }
 
     #[test]
-    fn test_part_1_sample() {
-        assert_eq!(
-            simulate_many(&Area::new(20, 30, -10, -5), &(0, 0), &(10, 10)),
-            45
-        );
+    fn test_sample() {
+        let (max_height, count) =
+            simulate_many(&Area::new(20, 30, -10, -5), &(-10, -10), &(100, 100));
+        assert_eq!(max_height, 45);
+        assert_eq!(count, 112);
     }
 
     #[test]
-    fn test_part_1_real() {
-        assert_eq!(
-            simulate_many(&Area::new(192, 251, -89, -59), &(0, 0), &(100, 100)),
-            3916
-        );
+    fn test_real() {
+        let (max_height, count) =
+            simulate_many(&Area::new(192, 251, -89, -59), &(-100, -100), &(1000, 1000));
+        assert_eq!(max_height, 3916);
+        assert_eq!(count, 2986);
     }
 }
