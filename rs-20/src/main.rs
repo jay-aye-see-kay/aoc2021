@@ -2,6 +2,7 @@ use std::{collections::HashSet, fs};
 
 fn main() {
     println!("part 1: {}", part_1("input"));
+    println!("part 2: {}", part_2("input"));
 }
 
 type Position = (i32, i32);
@@ -62,8 +63,8 @@ impl Image {
     fn enhance_image(&self) -> Self {
         let mut new_pixels = HashSet::new();
         let bounds = self.bounds();
-        for x in (bounds.x_min - 10)..=(bounds.x_max + 10) {
-            for y in (bounds.y_min - 10)..=(bounds.y_max + 10) {
+        for x in (bounds.x_min - 100)..=(bounds.x_max + 100) {
+            for y in (bounds.y_min - 100)..=(bounds.y_max + 100) {
                 let new_pixel = self.enhance_pixel(&(x, y));
                 if new_pixel {
                     new_pixels.insert((x, y));
@@ -124,6 +125,21 @@ fn get_input(filename: &str) -> Image {
 fn part_1(filename: &str) -> usize {
     let mut image = get_input(filename);
     for _ in 0..2 {
+        image = image.enhance_image();
+    }
+    let bounds = image.bounds();
+    image
+        .pixels
+        .into_iter()
+        .filter(|(x, y)| {
+            x >= &bounds.x_min && x <= &bounds.x_max && y >= &bounds.y_min && y <= &bounds.y_max
+        })
+        .count()
+}
+
+fn part_2(filename: &str) -> usize {
+    let mut image = get_input(filename);
+    for _ in 0..50 {
         image = image.enhance_image();
     }
     let bounds = image.bounds();
@@ -208,7 +224,20 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // disabled because very slow
     fn test_part_1_real() {
         assert_eq!(part_1("input"), 4928);
+    }
+
+    #[test]
+    #[ignore] // disabled because very slow
+    fn test_part_2_sample() {
+        assert_eq!(part_2("input.test"), 3351);
+    }
+
+    #[test]
+    #[ignore] // disabled because very slow
+    fn test_part_2_real() {
+        assert_eq!(part_2("input"), 16605);
     }
 }
